@@ -1,6 +1,6 @@
 # UE Forge
 
-**[English version](README.md)**
+**[English](README.md) | Русский**
 
 Десктопный тулкит для автоматизации работы с Unreal Engine. Frameless тёмный UI, модульная архитектура страниц, работает отдельно или как единое приложение.
 
@@ -18,19 +18,19 @@
 UE Forge — хост-окно с сайдбаром, в которое загружаются страницы инструментов. Каждый инструмент можно также запустить отдельно.
 
 ### [Plugin Builder](ue_forge/plugin_builder/docs/README_RU.md)
-
+![plugin_builder_ru.png](ue_forge%2Fplugin_builder%2Fscreenshots%2Fplugin_builder_ru.png)
 Сборка UE-плагинов из исходников через UAT. Автоматическое обнаружение установленных движков, валидация `.uplugin`, живая консоль сборки. Расширенные флаги, выбор платформ, настройки на каждый движок.
 
 ### [Renamer](ue_forge/renamer/docs/README_RU.md)
-
-Полное переименование UE-плагинов и проектов. Обрабатывает `.uplugin` / `.uproject` JSON, имена классов и конструкторы в `.Build.cs`, API-макросы, include guard'ы, `IMPLEMENT_MODULE`, конфиги, комментарии. Diff-превью перед применением, бэкап при execute.
+![renamer_ru.png](ue_forge%2Frenamer%2Fscreenshots%2Frenamer_ru.png)
+Полное переименование UE-плагинов и проектов. Обрабатывает `.uplugin` / `.uproject` JSON, имена классов и конструкторы в `.Build.cs`, API-макросы, include guard'ы, `IMPLEMENT_MODULE`, конфиги, комментарии. Diff-превью перед применением, бэкап при выполнении.
 
 ### [Include Optimizer](ue_forge/include_optimizer/docs/README_RU.md)
-
+![include_optimizer_ru.png](ue_forge%2Finclude_optimizer%2Fscreenshots%2Finclude_optimizer_ru.png)
 Оптимизация `#include` в C++ исходниках UE-проекта. Добавляет отсутствующие `UE_INLINE_GENERATED_CPP_BY_NAME`, заменяет `CoreMinimal.h` на конкретные используемые заголовки, удаляет дубликаты, исправляет инклюды внутри препроцессорных блоков. Рекурсивное сканирование плагинов с исключением по чекбоксам.
 
 ### [Commandlet Runner](ue_forge/commandlet_runner/docs/README_RU.md)
-
+![comandlet_runner_ru.png](ue_forge%2Fcommandlet_runner%2Fscreenshots%2Fcomandlet_runner_ru.png)
 Обнаружение и запуск UE-командлетов. Сканирует исходники движка и проекта на `UCommandlet` подклассы, извлекает описания из комментариев и `HelpDescription`, генерирует usage из паттернов `FParse::Param`. Избранное, заметки, живой вывод консоли.
 
 ---

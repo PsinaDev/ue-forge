@@ -1,8 +1,10 @@
 # Renamer
 
-**[Русская версия](README_RU.md)** · [← Back to UE Forge](../../../README.md)
+**English | [Русский](README_RU.md)** | [Back to UE Forge](../../../README.md)
 
 Rename Unreal Engine plugins and projects with full source-code awareness.
+
+![renamer_en.png](..%2Fscreenshots%2Frenamer_en.png)
 
 ## Features
 

@@ -1,8 +1,10 @@
 # Include Optimizer
 
-**[English version](README.md)** · [← Назад к UE Forge](../../../README_RU.md)
+**[English](README.md) | Русский** | [Назад к UE Forge](../../../README_RU.md)
 
 Оптимизация директив `#include` в C++ исходниках проекта Unreal Engine.
+
+![include_optimizer_ru.png](..%2Fscreenshots%2Finclude_optimizer_ru.png)
 
 ## Возможности
 

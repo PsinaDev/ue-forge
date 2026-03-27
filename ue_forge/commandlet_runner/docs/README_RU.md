@@ -1,8 +1,10 @@
 # Commandlet Runner
 
-**[English version](README.md)** · [← Назад к UE Forge](../../../README_RU.md)
+**[English](README.md) | Русский** | [Назад к UE Forge](../../../README_RU.md)
 
 Обнаружение и запуск командлетов Unreal Engine с автогенерацией информации об использовании.
+
+![comandlet_runner_ru.png](..%2Fscreenshots%2Fcomandlet_runner_ru.png)
 
 ## Возможности
 

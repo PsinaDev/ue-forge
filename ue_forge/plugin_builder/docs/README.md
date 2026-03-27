@@ -1,8 +1,10 @@
 # Plugin Builder
 
-**[Русская версия](README_RU.md)** · [← Back to UE Forge](../../../README.md)
+**English | [Русский](README_RU.md)** | [Back to UE Forge](../../../README.md)
 
 Build Unreal Engine plugins from source using UAT (Unreal Automation Tool).
+
+![plugin_builder_en.png](..%2Fscreenshots%2Fplugin_builder_en.png)
 
 ## Features
 

@@ -1,6 +1,6 @@
 # UE Forge
 
-**[Русская версия](README_RU.md)**
+**English | [Русский](README_RU.md)**
 
 Desktop toolkit for Unreal Engine automation. Frameless dark UI, modular page architecture, runs standalone or as a combined app.
 
@@ -18,19 +18,19 @@ Desktop toolkit for Unreal Engine automation. Frameless dark UI, modular page ar
 UE Forge is a host window with a sidebar that loads tool pages. Each tool can also run standalone.
 
 ### [Plugin Builder](ue_forge/plugin_builder/docs/README.md)
-
+![plugin_builder_en.png](ue_forge%2Fplugin_builder%2Fscreenshots%2Fplugin_builder_en.png)
 Build UE plugins from source via UAT. Auto-discovers engine installations, validates `.uplugin` structure, shows live build console. Supports advanced build flags, platform selection, per-engine settings.
 
 ### [Renamer](ue_forge/renamer/docs/README.md)
-
+![renamer_en.png](ue_forge%2Frenamer%2Fscreenshots%2Frenamer_en.png)
 Rename UE plugins and projects end-to-end. Handles `.uplugin` / `.uproject` JSON, `.Build.cs` class names and constructors, API macros, include guards, `IMPLEMENT_MODULE`, config files, comments. Diff-style preview before execution, backup on apply.
 
 ### [Include Optimizer](ue_forge/include_optimizer/docs/README.md)
-
+![include_optimizer_en.png](ue_forge%2Finclude_optimizer%2Fscreenshots%2Finclude_optimizer_en.png)
 Optimize C++ `#include` directives across a UE project. Adds missing `UE_INLINE_GENERATED_CPP_BY_NAME`, replaces `CoreMinimal.h` with only the specific headers actually used, removes duplicates, fixes includes trapped inside preprocessor blocks. Recursive plugin scanning with per-plugin exclusion.
 
 ### [Commandlet Runner](ue_forge/commandlet_runner/docs/README.md)
-
+![comandlet_runner_en.png](ue_forge%2Fcommandlet_runner%2Fscreenshots%2Fcomandlet_runner_en.png)
 Discover and execute UE commandlets. Scans engine and project source for `UCommandlet` subclasses, extracts descriptions from code comments and `HelpDescription`, auto-generates usage from `FParse::Param` patterns. Favorites, notes, live console output.
 
 ---
