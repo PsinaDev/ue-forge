@@ -1,0 +1,281 @@
+"""Plugin Builder translations — registered at import time."""
+
+from ue_forge.shared.localization import register_translations
+
+register_translations({
+    "en": {
+        # Sidebar label
+        "plugin_builder": "Build Plugin",
+
+        # Build plugin section
+        "plugin": "Build plugin",
+        "select_uplugin_file": "Select .uplugin file",
+        "drag_drop_hint": "Or drag & drop plugin folder here",
+        "plugin_information": "Plugin Information",
+        "no_information": "No information. Please select a file...",
+
+        # Plugin info fields
+        "name": "Name",
+        "version": "Version",
+        "engine_version": "Engine Version",
+        "modules": "Modules",
+        "category": "Category",
+        "author": "Author",
+        "dependencies": "Dependencies",
+        "platforms": "Platforms",
+        "content": "Content",
+        "beta": "Beta",
+        "experimental": "Experimental",
+
+        # Plugin info sections
+        "section_basic": "BASIC",
+        "section_modules": "MODULES",
+        "section_dependencies": "DEPENDENCIES",
+        "section_platforms": "PLATFORMS",
+        "section_flags": "FLAGS",
+        "section_links": "LINKS",
+        "module_types": "Types",
+        "module_names": "Names",
+        "optional_deps": "Optional",
+        "enabled_by_default": "Enabled by default",
+        "hidden": "Hidden",
+        "sealed": "Sealed",
+        "no_code": "No code",
+        "explicitly_loaded": "Explicitly loaded",
+        "plugin_extension": "Plugin extension",
+        "requires_build_platform": "Requires build platform",
+        "can_contain_verse": "Verse content",
+        "installed": "Installed",
+        "supported_programs": "Programs",
+        "parent_plugin": "Parent plugin",
+        "virtual_path": "Virtual path",
+        "docs_url": "Docs",
+        "marketplace_url": "Marketplace",
+        "support_url": "Support",
+        "author_url": "Author URL",
+
+        # Target engine
+        "target_engine": "Target Engine",
+        "build_for": "Build for:",
+        "select_version": "Select version...",
+        "rescan_engines": "Rescan for engines",
+        "version_warning": "Warning: Target version matches plugin version!",
+
+        # Output directory
+        "output_directory": "Output Directory",
+        "to_parent_directory": "To parent directory",
+        "select_another_directory": "Select another directory",
+        "output_path": "Output path...",
+
+        # Buttons
+        "advanced_options": "Advanced Options",
+        "uat_help": "UAT Help",
+        "clear_console": "Clear Console",
+        "build_plugin": "Build Plugin",
+
+        # Settings / Engine dialog
+        "manage_engine_installations": "Manage Engine Installations",
+        "registered_engines": "Registered Engines",
+        "double_click_hint": "Double-click an engine to open its folder",
+        "remove_selected": "Remove Selected",
+        "scan_for_engines": "Scan for Engines",
+        "add_engine_manually": "Add Engine Manually",
+        "path_to_ue_installation": "Path to Unreal Engine installation...",
+        "auto_detect": "Auto-detect...",
+        "add_engine": "Add Engine",
+        "path_not_exist": "Path does not exist",
+        "not_valid_engine": "Not a valid Unreal Engine installation",
+        "detected_ue": "Detected UE",
+        "valid_engine_unknown_version": "Valid engine, version unknown",
+        "engine_added": "Engine added successfully",
+        "remove_engine_confirm": "Remove UE {version} from the list?",
+        "version_exists": "UE {version} already exists. Replace it?",
+        "version_required": "Please enter a version number (e.g., 5.4)",
+        "scanning_engines": "Scanning for engines...",
+        "found_engines": "Found {count} engine(s)",
+        "found_engines_hint": "If some engines are missing, add them manually below",
+        "no_engines_found": "No engines found",
+        "folder_not_found": "Folder does not exist",
+        "could_not_open_folder": "Could not open folder",
+        "select_ue_installation": "Select Unreal Engine installation",
+
+        # Advanced options
+        "advanced_build_options": "Advanced Build Options",
+        "target_platforms": "Target Platforms",
+        "windows_64": "Windows 64-bit",
+        "windows_32": "Windows 32-bit",
+        "linux": "Linux",
+        "macos": "macOS",
+        "build_options": "Build Options",
+        "no_host_platform": "Do not compile for host platform",
+        "strict_includes": "Strict includes (disable PCH and unity build)",
+        "unversioned": "Unversioned (no engine version in descriptor)",
+        "additional_parameters": "Additional Parameters",
+        "additional_params_hint": "Enter additional command line parameters.\nExample: -Param1=Value1 -Flag -Param2=\"Value with spaces\"",
+
+        # Command dialog
+        "build_command": "Build Command",
+        "copy_command": "Copy Command",
+        "command_copied": "Command copied to clipboard",
+
+        # Validation messages
+        "validation_error": "Validation Error",
+        "select_plugin_file": "Please select a plugin file.",
+        "plugin_not_found": "Plugin file not found.",
+        "select_target_engine": "Please select a target engine.",
+        "engine_not_found": "Selected engine not found.",
+        "specify_output_dir": "Please specify output directory.",
+
+        # Build messages
+        "searching_engines": "Searching for Unreal Engine installations...",
+        "found_n_engines": "Found {count} engine(s)",
+        "no_engines_add_manually": "No engines found. Add one manually via Settings.",
+        "plugin_selected": "Plugin selected: {path}",
+        "applied_options": "Applied options: {options}",
+        "build_complete": "Build Complete",
+        "build_successful": "Plugin built successfully!\n\nOutput: {path}",
+        "build_failed": "Build Failed",
+        "build_failed_msg": "Build failed:\n\n{error}",
+        "build_in_progress": "Build in Progress",
+        "cancel_and_exit": "A build is in progress. Cancel and exit?",
+        "generate_command_error": "Failed to generate build command. Check all parameters.",
+    },
+
+    "ru": {
+        # Sidebar label
+        "plugin_builder": "Сборка плагина",
+
+        # Build plugin section
+        "plugin": "Сборка плагина",
+        "select_uplugin_file": "Выберите файл .uplugin",
+        "drag_drop_hint": "Или перетащите папку с плагином сюда",
+        "plugin_information": "Информация о плагине",
+        "no_information": "Нет данных. Выберите файл...",
+
+        # Plugin info fields
+        "name": "Имя",
+        "version": "Версия",
+        "engine_version": "Версия движка",
+        "modules": "Модули",
+        "category": "Категория",
+        "author": "Автор",
+        "dependencies": "Зависимости",
+        "platforms": "Платформы",
+        "content": "Контент",
+        "beta": "Бета",
+        "experimental": "Экспериментальный.",
+
+        # Plugin info sections
+        "section_basic": "ОСНОВНОЕ",
+        "section_modules": "МОДУЛИ",
+        "section_dependencies": "ЗАВИСИМОСТИ",
+        "section_platforms": "ПЛАТФОРМЫ",
+        "section_flags": "ФЛАГИ",
+        "section_links": "ССЫЛКИ",
+        "module_types": "Типы",
+        "module_names": "Названия",
+        "optional_deps": "Опциональные",
+        "enabled_by_default": "Включён по умолчанию",
+        "hidden": "Скрытый",
+        "sealed": "Запечатанный",
+        "no_code": "Без кода",
+        "explicitly_loaded": "Явная загрузка",
+        "plugin_extension": "Расширение плагина",
+        "requires_build_platform": "Требует платформу сборки",
+        "can_contain_verse": "Verse контент",
+        "installed": "Установлен",
+        "supported_programs": "Поддерживаемые программы",
+        "parent_plugin": "Родительский плагин",
+        "virtual_path": "Виртуальный путь",
+        "docs_url": "Документация",
+        "marketplace_url": "Маркетплейс",
+        "support_url": "Поддержка",
+        "author_url": "Сайт автора",
+
+        # Target engine
+        "target_engine": "Целевой движок",
+        "build_for": "Собрать для:",
+        "select_version": "Выберите версию...",
+        "rescan_engines": "Обновить список движков",
+        "version_warning": "Внимание: целевая версия совпадает с версией плагина!",
+
+        # Output directory
+        "output_directory": "Папка назначения",
+        "to_parent_directory": "В родительскую папку",
+        "select_another_directory": "Указать другую папку",
+        "output_path": "Путь назначения...",
+
+        # Buttons
+        "advanced_options": "Дополнительно...",
+        "uat_help": "Справка UAT",
+        "clear_console": "Очистить",
+        "build_plugin": "Собрать",
+
+        # Settings / Engine dialog
+        "manage_engine_installations": "Управление движками",
+        "registered_engines": "Зарегистрированные движки",
+        "double_click_hint": "Двойной клик откроет папку движка",
+        "remove_selected": "Удалить выбранное",
+        "scan_for_engines": "Поиск движков",
+        "add_engine_manually": "Добавить вручную",
+        "path_to_ue_installation": "Путь к Unreal Engine...",
+        "auto_detect": "Автоопределение...",
+        "add_engine": "Добавить движок",
+        "path_not_exist": "Путь не существует",
+        "not_valid_engine": "Не является установкой Unreal Engine",
+        "detected_ue": "Обнаружен UE",
+        "valid_engine_unknown_version": "Движок найден, версия неизвестна",
+        "engine_added": "Движок добавлен",
+        "remove_engine_confirm": "Удалить UE {version} из списка?",
+        "version_exists": "UE {version} уже добавлен. Заменить?",
+        "version_required": "Укажите версию (например, 5.4)",
+        "scanning_engines": "Поиск движков...",
+        "found_engines": "Найдено: {count}",
+        "found_engines_hint": "Если движки не найдены — добавьте вручную",
+        "no_engines_found": "Движки не найдены",
+        "folder_not_found": "Папка не существует",
+        "could_not_open_folder": "Не удалось открыть папку",
+        "select_ue_installation": "Выберите папку Unreal Engine",
+
+        # Advanced options
+        "advanced_build_options": "Дополнительные параметры сборки",
+        "target_platforms": "Целевые платформы",
+        "windows_64": "Windows 64-bit",
+        "windows_32": "Windows 32-bit",
+        "linux": "Linux",
+        "macos": "macOS",
+        "build_options": "Параметры сборки",
+        "no_host_platform": "Не компилировать для хост-платформы",
+        "strict_includes": "Строгие include (без PCH и unity build)",
+        "unversioned": "Без версии движка в дескрипторе",
+        "additional_parameters": "Дополнительные параметры",
+        "additional_params_hint": "Дополнительные параметры командной строки.\nПример: -Param1=Value1 -Flag -Param2=\"Текст\"",
+
+        # Command dialog
+        "build_command": "Команда сборки",
+        "copy_command": "Копировать",
+        "command_copied": "Команда скопирована",
+
+        # Validation messages
+        "validation_error": "Ошибка проверки",
+        "select_plugin_file": "Выберите файл плагина.",
+        "plugin_not_found": "Файл плагина не найден.",
+        "select_target_engine": "Выберите целевой движок.",
+        "engine_not_found": "Движок не найден.",
+        "specify_output_dir": "Укажите папку назначения.",
+
+        # Build messages
+        "searching_engines": "Поиск установок Unreal Engine...",
+        "found_n_engines": "Найдено движков: {count}",
+        "no_engines_add_manually": "Движки не найдены. Добавьте через Настройки.",
+        "plugin_selected": "Выбран плагин: {path}",
+        "applied_options": "Применены параметры: {options}",
+        "build_complete": "Сборка завершена",
+        "build_successful": "Плагин собран успешно!\n\nРезультат: {path}",
+        "build_failed": "Ошибка сборки",
+        "build_failed_msg": "Сборка не удалась:\n\n{error}",
+        "build_in_progress": "Идёт сборка",
+        "cancel_and_exit": "Сборка в процессе. Отменить и выйти?",
+        "generate_command_error": "Не удалось сформировать команду. Проверьте параметры.",
+    },
+})

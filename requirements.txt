@@ -1,0 +1,8 @@
+# UE Tools Dependencies
+
+# GUI Framework
+PySide6>=6.5.0
+Pillow>=12.0.0
+
+# Build/Package (optional - for creating .exe)
+pyinstaller>=5.0.0

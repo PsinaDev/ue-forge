@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ue-forge"
+version = "2.0.0"
+description = "Modular toolkit for Unreal Engine automation"
+authors = [{ name = "Kim" }]
+requires-python = ">=3.10"
+dependencies = [
+    "PySide6>=6.5.0",
+    "Pillow>=12.0.0",
+]
+
+[project.optional-dependencies]
+build = ["pyinstaller>=5.0.0"]
+
+[project.scripts]
+ue-forge = "ue_forge.__main__:main"
+ue-plugin-builder = "ue_forge.plugin_builder.__main__:main"
+ue-renamer = "ue_forge.renamer.__main__:main"
+
+[tool.setuptools.packages.find]
+include = ["pyside_frameless*", "ue_forge*"]
+
+[tool.setuptools.package-data]
+"ue_forge.shared" = ["icon.png", "icon.ico"]
