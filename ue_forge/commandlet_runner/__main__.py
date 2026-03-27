@@ -26,7 +26,7 @@ def main() -> int:
     from PySide6.QtGui import QFont
 
     from ue_forge.host import SinglePageShell
-    from .page import CommandletRunnerPage
+    from ue_forge.commandlet_runner.page import CommandletRunnerPage
 
     app = QApplication([sys.argv[0]])
     app.setApplicationName("UE Commandlet Runner")

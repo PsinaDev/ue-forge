@@ -26,7 +26,7 @@ def main() -> int:
     from PySide6.QtGui import QFont
 
     from ue_forge.host import SinglePageShell
-    from .page import IncludeOptimizerPage
+    from ue_forge.include_optimizer.page import IncludeOptimizerPage
 
     app = QApplication([sys.argv[0]])
     app.setApplicationName("UE Include Optimizer")

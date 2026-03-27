@@ -27,7 +27,7 @@ def main() -> int:
     from PySide6.QtGui import QFont
 
     from ue_forge.host import SinglePageShell
-    from .page import PluginBuilderPage
+    from ue_forge.plugin_builder.page import PluginBuilderPage
 
     app = QApplication([sys.argv[0]])
     app.setApplicationName("UE Forge")

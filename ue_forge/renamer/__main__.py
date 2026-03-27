@@ -26,7 +26,7 @@ def main() -> int:
     from PySide6.QtGui import QFont
 
     from ue_forge.host import SinglePageShell
-    from .page import RenamerPage
+    from ue_forge.renamer.page import RenamerPage
 
     app = QApplication([sys.argv[0]])
     app.setApplicationName("UE Renamer")
