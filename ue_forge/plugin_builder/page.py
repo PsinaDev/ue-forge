@@ -40,10 +40,6 @@ from .engine_finder import EngineFinder
 from .builder import PluginBuilder
 
 
-# ---------------------------------------------------------------------------
-# Workers (moved from main_window.py without changes)
-# ---------------------------------------------------------------------------
-
 class EngineSearchWorker(QObject):
     """Worker for searching engines in background thread."""
 

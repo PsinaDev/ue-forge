@@ -36,11 +36,26 @@ class CommandletSource(Enum):
 
 @dataclass
 class CommandletParam:
-    """A discovered commandlet parameter or switch."""
+    """A discovered commandlet parameter or switch.
+
+    Extra fields (backward compatible with page.py which reads only
+    name/description/has_value/default_value):
+        value_hint:  placeholder for the value form, e.g. "platform", "filename".
+        aliases:     alternate spellings found in source (same meaning, different case/name).
+        source_kind: first source that produced this param ("fparse_value",
+                     "fparse_param", "switches", "paramvals", "help_block",
+                     "usage_text", "print_help"). Diagnostic only.
+        is_negated:  true when at least one occurrence was '!FParse::Param(...)'
+                     (inverting flag). Not rendered by UI; reserved for future.
+    """
     name: str
     description: str = ""
     has_value: bool = False
     default_value: str = ""
+    value_hint: str = ""
+    aliases: list[str] = field(default_factory=list)
+    source_kind: str = ""
+    is_negated: bool = False
 
 
 @dataclass
@@ -72,7 +87,8 @@ class CommandletInfo:
         parts: list[str] = []
         for p in self.params:
             if p.has_value:
-                parts.append(f"-{p.name}=<value>")
+                hint = p.value_hint.strip() or "value"
+                parts.append(f"-{p.name}=<{hint}>")
             else:
                 parts.append(f"-{p.name}")
         return "Discovered parameters:  " + "  ".join(parts)
@@ -113,20 +129,43 @@ _COMMENT_BLOCK_RE = re.compile(
     r"(/\*\*[\s\S]*?\*/|(?://[^\n]*\n)+)\s*$"
 )
 
-# Parameter patterns found in commandlet source
-_PARAM_PATTERNS = [
-    # FParse::Param(Params, TEXT("ParamName"), Value)
-    re.compile(r'FParse::Param\s*\([^,]+,\s*TEXT\(\s*"(-?\w+)"\s*\)', re.IGNORECASE),
-    # FParse::Value(Params, TEXT("ParamName"), Value)
-    re.compile(r'FParse::Value\s*\([^,]+,\s*TEXT\(\s*"(-?\w+)"\s*\)', re.IGNORECASE),
-    # Switches.Contains(TEXT("switch"))
-    re.compile(r'Switches\.Contains\s*\(\s*TEXT\(\s*"(-?\w+)"\s*\)', re.IGNORECASE),
-    # Params.Contains(TEXT("-switch"))
-    re.compile(r'Contains\s*\(\s*TEXT\(\s*"-(\w+)"\s*\)', re.IGNORECASE),
-    # ParseCommandLine helper patterns
-    re.compile(r'TEXT\(\s*"-(\w+)="\s*\)', re.IGNORECASE),
-    re.compile(r'TEXT\(\s*"-(\w+)"\s*\)', re.IGNORECASE),
+# Parameter patterns found in commandlet source.
+# Each entry: (regex, source_kind, has_value_by_default).
+# Order matters: more specific patterns (negated, '=' form) come before generic.
+_PARAM_PATTERNS: list[tuple[re.Pattern[str], str, bool]] = [
+    # !FParse::Param(..., TEXT("Name"))   - inverting flag
+    (re.compile(
+        r'!\s*FParse::Param\s*\([^,]+,\s*TEXT\(\s*"-?(\w+)"\s*\)',
+    ), "fparse_param_negated", False),
+    # FParse::Value(..., TEXT("Name=") or TEXT("Name"))
+    (re.compile(
+        r'\bFParse::Value\s*\([^,]+,\s*TEXT\(\s*"-?(\w+)=?"\s*\)',
+    ), "fparse_value", True),
+    # FParse::Bool(..., TEXT("Name"), ...)
+    (re.compile(
+        r'\bFParse::Bool\s*\([^,]+,\s*TEXT\(\s*"-?(\w+)"\s*\)',
+    ), "fparse_bool", True),
+    # FParse::Param(..., TEXT("Name"))
+    (re.compile(
+        r'\bFParse::Param\s*\([^,]+,\s*TEXT\(\s*"-?(\w+)"\s*\)',
+    ), "fparse_param", False),
+    # Switches.Contains("Name") or Switches.Contains(TEXT("Name"))
+    (re.compile(
+        r'\bSwitches\s*\.\s*Contains\s*\(\s*(?:TEXT\s*\(\s*)?"-?(\w+)"\s*\)?\s*\)',
+    ), "switches", False),
+    # ParamVals.Find(TEXT("Name")) / .FindRef / .Contains / ParamVals[TEXT("Name")]
+    # Optional FString(...) wrapper: ParamVals.Find(FString(TEXT("Config")))
+    (re.compile(
+        r'\bParamVals\s*(?:\.\s*(?:Find|FindRef|Contains)\s*\(|\[)\s*'
+        r'(?:FString\s*\(\s*)?TEXT\(\s*"-?(\w+)"\s*\)',
+    ), "paramvals", True),
 ]
+
+# Names to ignore when harvested from source — these are not user-facing params.
+_NOISE_NAMES: frozenset[str] = frozenset({
+    "run", "game", "log", "editor", "server", "client",
+    "commandlet", "cmdlet", "help",
+})
 
 # Directories to skip during recursive scanning
 _SKIP_DIRS = {
@@ -141,24 +180,56 @@ _UE_LOG_TEXT_RE = re.compile(
     re.MULTILINE,
 )
 
-# Pattern to parse help parameter lines like:
-#   " Required: -targetPlatform=<platform>     (Description here"
-#   " Optional: -noglobals                     (Don't do global shaders)"
-_HELP_PARAM_RE = re.compile(
-    r"^\s*(?:Required|Optional)?:?\s*"  # Optional "Required:" or "Optional:" prefix
-    r"-(\w+)"                            # Parameter name
-    r"(?:=<[^>]+>|=\S+)?"               # Optional =<value> or =VALUE
-    r"\s*"                               # Whitespace
-    r"(?:\((.+?)\)?)?$",                 # Optional (description)
+# Bare TEXT("...") — used inside concatenated UsageText string literals where
+# there is no surrounding UE_LOG wrapper. Applied only to pre-extracted blocks.
+_BARE_TEXT_RE = re.compile(r'TEXT\(\s*"((?:[^"\\]|\\.)*)"\s*\)')
+
+# Help-line formats (tried in order, first match wins per line):
+
+# 1. "-name=<placeholder>   Description text"
+_HELP_LINE_ANGLE_RE = re.compile(
+    r"^\s*-(\w+)=<([^>]+)>\s{2,}(.+?)\s*$",
+)
+# 2. "-name=VALUE   Description text"  (VALUE is literal placeholder like "filename")
+_HELP_LINE_EQ_RE = re.compile(
+    r"^\s*-(\w+)=(\S+)\s{2,}(.+?)\s*$",
+)
+# 3. "-name   Description text"
+_HELP_LINE_FLAG_RE = re.compile(
+    r"^\s*-(\w+)\s{2,}(.+?)\s*$",
+)
+# 4. "Required: -name=<placeholder>   (Description text)"
+_HELP_LINE_LABELED_RE = re.compile(
+    r"^\s*(?:Required|Optional)\s*:\s*-(\w+)"
+    r"(?:=<([^>]+)>|=(\S+))?"
+    r"\s*\((.+?)\)?\s*$",
+    re.IGNORECASE,
+)
+# 5. UsageText tab-separated form: "Preview\t Runs the commandlet..."
+#    (NO leading dash, used only for usage_text blocks.)
+_HELP_LINE_TAB_RE = re.compile(
+    r"^\s*(\w+)\s*\\t+\s*(.+?)\s*$",
+)
+
+# Header lines to skip (not descriptions, not params)
+_HELP_HEADER_WORDS: frozenset[str] = frozenset({
+    "options", "parameters", "usage", "switches", "arguments", "flags",
+})
+
+# Usage-example heuristics inside help blocks
+_USAGE_HINT_SUBSTRINGS: tuple[str, ...] = (
+    "-run=", "editor-cmd", "unrealeditor-cmd", "ue4editor-cmd",
+)
+
+# Placeholders that mark a line as a usage-example rather than a param definition
+_USAGE_PLACEHOLDER_RE = re.compile(
+    r"<\s*(?:GameName|YourProject|YourGame|project|ProjectName|UProject)\s*>",
     re.IGNORECASE,
 )
 
-# Alternative help param pattern: "-param    Description without parens"
-_HELP_PARAM_ALT_RE = re.compile(
-    r"^\s*-(\w+)"                        # -param
-    r"(?:=<[^>]+>|=\S+)?"               # Optional =<value>
-    r"\s{2,}"                            # At least 2 spaces separator
-    r"(.+)$",                            # Description
+# Harvest inline parameters from a usage-example line: "-name=<hint>" or "-name=VALUE"
+_INLINE_PARAM_RE = re.compile(
+    r"-(\w+)(?:=<([^>]+)>|=(\S+))?",
 )
 
 
@@ -206,34 +277,55 @@ def _extract_description(file_text: str, class_match_start: int) -> str:
     return ""
 
 
+def _extract_params_from_text(text: str) -> list[CommandletParam]:
+    """Scan raw C++ source text for parameter usage patterns.
+
+    Same logic as :func:`_extract_params_from_cpp`, but takes a string so it
+    can be invoked on a class-scoped slice of a multi-class .cpp.
+    """
+    found: dict[str, CommandletParam] = {}
+    for pattern, kind, has_value in _PARAM_PATTERNS:
+        is_negated_pattern = kind.endswith("_negated")
+        base_kind = kind.replace("_negated", "")
+        for match in pattern.finditer(text):
+            raw = match.group(1).lstrip("-")
+            if len(raw) <= 1:
+                continue
+            if raw.casefold() in _NOISE_NAMES:
+                continue
+            key = raw.casefold()
+            existing = found.get(key)
+            if existing is None:
+                found[key] = CommandletParam(
+                    name=raw,
+                    has_value=has_value,
+                    source_kind=base_kind,
+                    is_negated=is_negated_pattern,
+                )
+            else:
+                existing.has_value = existing.has_value or has_value
+                existing.is_negated = existing.is_negated or is_negated_pattern
+                if raw != existing.name and raw not in existing.aliases:
+                    existing.aliases.append(raw)
+    return list(found.values())
+
+
 def _extract_params_from_cpp(cpp_path: Path) -> list[CommandletParam]:
-    """Scan a .cpp file for parameter usage patterns."""
+    """Scan a .cpp file for parameter usage patterns.
+
+    Deduplicates case-insensitively (UE command-line is case-insensitive),
+    collects alternate spellings into ``aliases``, and flips ``is_negated``
+    when '!FParse::Param(...)' occurrences are seen.
+    """
     try:
         text = cpp_path.read_text(encoding="utf-8", errors="replace")
     except OSError:
         return []
-
-    found: dict[str, CommandletParam] = {}
-    for pattern in _PARAM_PATTERNS:
-        for m in pattern.finditer(text):
-            name = m.group(1).lstrip("-")
-            if name and name not in found and len(name) > 1:
-                has_value = "Value" in pattern.pattern or "=" in pattern.pattern
-                found[name] = CommandletParam(
-                    name=name,
-                    has_value=has_value,
-                )
-    return list(found.values())
+    return _extract_params_from_text(text)
 
 
-def _extract_help_text(cpp_path: Path) -> str:
-    """Try to extract HelpDescription or help text from constructor."""
-    try:
-        text = cpp_path.read_text(encoding="utf-8", errors="replace")
-    except OSError:
-        return ""
-
-    # Look for HelpDescription assignment
+def _extract_help_text_from_text(text: str) -> str:
+    """Scan C++ source text for HelpDescription / HelpUsage field assignments."""
     m = re.search(
         r'HelpDescription\s*=\s*TEXT\(\s*"((?:[^"\\]|\\.)*)"\s*\)',
         text,
@@ -241,7 +333,6 @@ def _extract_help_text(cpp_path: Path) -> str:
     if m:
         return m.group(1).replace("\\n", "\n").replace('\\"', '"')
 
-    # Look for HelpUsage
     m = re.search(
         r'HelpUsage\s*=\s*TEXT\(\s*"((?:[^"\\]|\\.)*)"\s*\)',
         text,
@@ -250,6 +341,38 @@ def _extract_help_text(cpp_path: Path) -> str:
         return m.group(1).replace("\\n", "\n").replace('\\"', '"')
 
     return ""
+
+
+def _extract_help_text(cpp_path: Path) -> str:
+    """Try to extract HelpDescription or help text from constructor."""
+    try:
+        text = cpp_path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return ""
+    return _extract_help_text_from_text(text)
+
+
+def _extract_balanced_braces(text: str, start_pos: int) -> Optional[str]:
+    """Extract content between matching braces starting from ``start_pos``.
+
+    ``start_pos`` must point at or past the opening '{'. Returns the contents
+    without the outer braces, or None when the braces are unbalanced.
+    """
+    brace_pos = text.find("{", start_pos)
+    if brace_pos == -1 or brace_pos > start_pos + 60:
+        return None
+    depth = 1
+    pos = brace_pos + 1
+    while pos < len(text) and depth > 0:
+        ch = text[pos]
+        if ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+        pos += 1
+    if depth != 0:
+        return None
+    return text[brace_pos + 1:pos - 1]
 
 
 def _find_help_block(text: str) -> Optional[str]:
@@ -261,97 +384,265 @@ def _find_help_block(text: str) -> Optional[str]:
         if (Switches.Contains(TEXT("help")))
         if (FParse::Param(..., TEXT("help")))
     """
-    # Patterns that indicate start of help block
     help_patterns = [
-        r'Switches\.Contains\s*\(\s*(?:TEXT\()?\s*"help"',
+        r'Switches\s*\.\s*Contains\s*\(\s*(?:TEXT\s*\()?\s*"help"',
         r'FParse::Param\s*\([^,]+,\s*TEXT\(\s*"help"\s*\)',
         r'Contains\s*\(\s*TEXT\(\s*"-?help"\s*\)',
     ]
-
     for pattern in help_patterns:
-        m = re.search(pattern, text, re.IGNORECASE)
-        if m:
-            # Find the opening brace after this match
-            start = m.end()
-            brace_pos = text.find("{", start)
-            if brace_pos == -1 or brace_pos > start + 50:
-                continue
+        match = re.search(pattern, text, re.IGNORECASE)
+        if not match:
+            continue
+        block = _extract_balanced_braces(text, match.end())
+        if block is not None:
+            return block
+    return None
 
-            # Extract balanced braces block
-            depth = 1
-            pos = brace_pos + 1
-            while pos < len(text) and depth > 0:
-                if text[pos] == "{":
-                    depth += 1
-                elif text[pos] == "}":
-                    depth -= 1
-                pos += 1
 
-            if depth == 0:
-                return text[brace_pos + 1:pos - 1]
+# Declarations of help-printing lambdas/functions (captures identifier name)
+_PRINT_HELP_DECL_RE = re.compile(
+    r"\b(?:auto|static|void|int|int32)\s+(?:\w+::)?"
+    r"(\w*[Hh]elp\w*)\s*"
+    r"(?:=\s*\[[^\]]*\][^{]*)?"
+    r"\(\s*\)\s*(?:->\s*\w+\s*)?\{",
+    re.MULTILINE,
+)
+
+# const FString [Class::]UsageText(...) — concatenated TEXT(...) literals
+_USAGE_TEXT_DECL_RE = re.compile(
+    r"\bconst\s+FString\s+(?:\w+::)?\w*(?:UsageText|HelpText|UsageString)\w*"
+    r"\s*\(([\s\S]*?)\)\s*;",
+    re.MULTILINE,
+)
+
+
+def _find_print_help_bodies(text: str) -> list[str]:
+    """Extract bodies of help-printing lambdas/functions (PrintHelp, ShowHelp, ...).
+
+    Catches patterns like::
+
+        auto PrintHelp = []() { UE_LOG(...); ... };
+        void UFoo::PrintHelp() { UE_LOG(...); ... }
+        static void ShowHelp() { ... }
+    """
+    bodies: list[str] = []
+    seen: set[int] = set()
+    for match in _PRINT_HELP_DECL_RE.finditer(text):
+        ident = match.group(1)
+        if ident.casefold() in {"helper", "helpers", "helped"}:
+            continue
+        body = _extract_balanced_braces(text, match.end() - 1)
+        if body is None or match.start() in seen:
+            continue
+        seen.add(match.start())
+        bodies.append(body)
+    return bodies
+
+
+def _find_usage_text_strings(text: str) -> list[str]:
+    """Extract content of const-FString usage/help string declarations.
+
+    The content is a sequence of concatenated ``TEXT("...")`` literals;
+    they are joined with newlines so that the result can be fed to the
+    same line-based parser used for regular help blocks.
+    """
+    results: list[str] = []
+    for match in _USAGE_TEXT_DECL_RE.finditer(text):
+        raw = match.group(1)
+        pieces = [m.group(1) for m in _BARE_TEXT_RE.finditer(raw)]
+        if not pieces:
+            continue
+        joined = "\n".join(pieces)
+        results.append(joined)
+    return results
+
+
+def _try_parse_help_line(
+    line: str,
+    *,
+    allow_tab_form: bool,
+) -> Optional[CommandletParam]:
+    """Try each known help-line format. Returns parsed param or None.
+
+    ``allow_tab_form`` enables the UsageText-specific pattern
+    ``"Name\\t Description"`` (no leading dash). Enabled only when parsing
+    blocks extracted from ``const FString UsageText(...)`` declarations.
+    """
+    labeled = _HELP_LINE_LABELED_RE.match(line)
+    if labeled:
+        name = labeled.group(1)
+        angle_hint = labeled.group(2) or ""
+        eq_value = labeled.group(3) or ""
+        desc = labeled.group(4).strip().rstrip(")").strip()
+        return CommandletParam(
+            name=name,
+            description=desc,
+            has_value=bool(angle_hint or eq_value),
+            value_hint=angle_hint,
+            source_kind="help_block",
+        )
+
+    angle = _HELP_LINE_ANGLE_RE.match(line)
+    if angle:
+        return CommandletParam(
+            name=angle.group(1),
+            description=angle.group(3).strip(),
+            has_value=True,
+            value_hint=angle.group(2).strip(),
+            source_kind="help_block",
+        )
+
+    eq = _HELP_LINE_EQ_RE.match(line)
+    if eq:
+        return CommandletParam(
+            name=eq.group(1),
+            description=eq.group(3).strip(),
+            has_value=True,
+            value_hint=eq.group(2).strip(),
+            source_kind="help_block",
+        )
+
+    flag = _HELP_LINE_FLAG_RE.match(line)
+    if flag:
+        return CommandletParam(
+            name=flag.group(1),
+            description=flag.group(2).strip(),
+            has_value=False,
+            source_kind="help_block",
+        )
+
+    if allow_tab_form:
+        tab = _HELP_LINE_TAB_RE.match(line)
+        if tab:
+            return CommandletParam(
+                name=tab.group(1),
+                description=tab.group(2).strip(),
+                has_value=False,
+                source_kind="usage_text",
+            )
 
     return None
 
 
-def _parse_help_block(help_block: str) -> tuple[str, list[CommandletParam]]:
+def _looks_like_usage_example(line: str) -> bool:
+    """Heuristic: does this line look like a full command-line example?"""
+    low = line.lower()
+    if any(hint in low for hint in _USAGE_HINT_SUBSTRINGS):
+        return True
+    # Lines that open with a project placeholder like "<GameName> CommandletName ..."
+    # are usage examples too, even without -run= (common in UsageText strings).
+    if _USAGE_PLACEHOLDER_RE.search(line):
+        return True
+    return False
+
+
+def _harvest_inline_params(line: str) -> list[CommandletParam]:
+    """Extract -name[=<hint>|=VALUE] occurrences from a usage-example line.
+
+    Used for lines recognised as usage examples: they contain real parameter
+    names which would otherwise be lost (no dedicated param-description line).
+    Returned params have empty description — they only confirm existence and
+    may carry a value_hint extracted from the ``<placeholder>`` form.
     """
-    Parse UE_LOG calls inside a help block to extract description and params.
+    results: list[CommandletParam] = []
+    for match in _INLINE_PARAM_RE.finditer(line):
+        name = match.group(1)
+        angle_hint = match.group(2) or ""
+        eq_value = match.group(3) or ""
+        if name.casefold() in _NOISE_NAMES:
+            continue
+        if len(name) <= 1:
+            continue
+        results.append(CommandletParam(
+            name=name,
+            description="",
+            has_value=bool(angle_hint or eq_value),
+            value_hint=angle_hint,
+            source_kind="usage_text",
+        ))
+    return results
+
+
+def _parse_help_block(
+    help_block: str,
+    *,
+    source: str,
+) -> tuple[str, list[CommandletParam], list[str]]:
+    """Parse lines harvested from a help block.
+
+    ``source`` is one of ``"if_block"``, ``"print_help"``, ``"usage_text"``.
+    ``"usage_text"`` enables the tab-separated line form which is too loose
+    to apply outside explicit UsageText blocks.
 
     Returns:
-        tuple of (description, list of CommandletParam)
+        (description, params, examples) — examples are usage-example lines
+        extracted from inside the block (full command-line invocations).
     """
     description_lines: list[str] = []
     params: dict[str, CommandletParam] = {}
+    examples: list[str] = []
 
-    # Extract all TEXT("...") from UE_LOG calls
-    for m in _UE_LOG_TEXT_RE.finditer(help_block):
-        line = m.group(1).replace("\\n", "\n").replace('\\"', '"').strip()
-        if not line:
-            continue
+    if source == "usage_text":
+        # UsageText content is already a sequence of raw TEXT("...") pieces
+        # joined by '\n'; treat every non-empty line as a candidate.
+        raw_lines = help_block.splitlines()
+    else:
+        # Inside an if-block or lambda, extract only what appears inside
+        # UE_LOG(..., TEXT("..."))
+        raw_lines = [m.group(1) for m in _UE_LOG_TEXT_RE.finditer(help_block)]
 
-        # Check if this line describes a parameter
-        param_match = _HELP_PARAM_RE.match(line)
-        if param_match:
-            param_name = param_match.group(1)
-            param_desc = param_match.group(2) or ""
-            # Clean up trailing )
-            param_desc = param_desc.rstrip(")")
-            has_value = "=" in line or "<" in line
-            if param_name.lower() not in ("run", "help"):
-                params[param_name] = CommandletParam(
-                    name=param_name,
-                    description=param_desc.strip(),
-                    has_value=has_value,
-                )
-            continue
+    allow_tab = (source == "usage_text")
 
-        # Try alternative format
-        alt_match = _HELP_PARAM_ALT_RE.match(line)
-        if alt_match:
-            param_name = alt_match.group(1)
-            param_desc = alt_match.group(2)
-            has_value = "=" in line or "<" in line
-            if param_name.lower() not in ("run", "help"):
-                params[param_name] = CommandletParam(
-                    name=param_name,
-                    description=param_desc.strip(),
-                    has_value=has_value,
-                )
-            continue
+    for raw in raw_lines:
+        # Normalize literal escapes coming from C++ string literals.
+        normalized = raw.replace("\\r\\n", "\n").replace("\\n", "\n").replace('\\"', '"')
+        for piece in normalized.splitlines():
+            line = piece.strip()
+            if not line:
+                continue
 
-        # Check for "Options:" header line — skip it
-        if line.lower() in ("options:", "parameters:", "usage:", "switches:"):
-            continue
+            if _looks_like_usage_example(line):
+                examples.append(line)
+                for inline in _harvest_inline_params(line):
+                    key = inline.name.casefold()
+                    existing = params.get(key)
+                    if existing is None:
+                        params[key] = inline
+                    else:
+                        if not existing.value_hint and inline.value_hint:
+                            existing.value_hint = inline.value_hint
+                        existing.has_value = existing.has_value or inline.has_value
+                        if inline.name != existing.name and inline.name not in existing.aliases:
+                            existing.aliases.append(inline.name)
+                continue
 
-        # Otherwise it's part of the description
-        # Skip lines that are just the commandlet name or headers
-        if not any(x in line.lower() for x in ("required:", "optional:", "---")):
+            if line.lower().rstrip(":").strip() in _HELP_HEADER_WORDS:
+                continue
+
+            param = _try_parse_help_line(line, allow_tab_form=allow_tab)
+            if param is not None:
+                if param.name.casefold() in _NOISE_NAMES:
+                    # Recognised as a param but name is noise (e.g. "-help");
+                    # drop entirely — do NOT leak into description.
+                    continue
+                key = param.name.casefold()
+                existing = params.get(key)
+                if existing is None:
+                    params[key] = param
+                else:
+                    if not existing.description and param.description:
+                        existing.description = param.description
+                    if not existing.value_hint and param.value_hint:
+                        existing.value_hint = param.value_hint
+                    existing.has_value = existing.has_value or param.has_value
+                    if param.name != existing.name and param.name not in existing.aliases:
+                        existing.aliases.append(param.name)
+                continue
+
             description_lines.append(line)
 
-    # Join description, removing the commandlet name line if it's just the name
     description = "\n".join(description_lines).strip()
-
-    return description, list(params.values())
+    return description, list(params.values()), examples
 
 
 def _extract_usage_examples(cpp_path: Path) -> list[str]:
@@ -395,6 +686,54 @@ def _extract_usage_examples(cpp_path: Path) -> list[str]:
     return examples
 
 
+def _extract_help_block_data_from_text(
+    text: str,
+) -> tuple[str, list[CommandletParam], list[str]]:
+    """Text-driven variant of :func:`_extract_help_block_data`.
+
+    Does not read any file and does not invoke comment-scraping fallbacks
+    (those are path-based and belong to the .cpp-level helper).
+    """
+    descriptions: list[str] = []
+    params: dict[str, CommandletParam] = {}
+    examples: list[str] = []
+
+    block_sources: list[tuple[str, str]] = []
+
+    direct = _find_help_block(text)
+    if direct:
+        block_sources.append(("if_block", direct))
+
+    for body in _find_print_help_bodies(text):
+        block_sources.append(("print_help", body))
+
+    for usage in _find_usage_text_strings(text):
+        block_sources.append(("usage_text", usage))
+
+    for kind, block in block_sources:
+        desc, parsed, ex = _parse_help_block(block, source=kind)
+        if desc:
+            descriptions.append(desc)
+        examples.extend(ex)
+        for p in parsed:
+            key = p.name.casefold()
+            existing = params.get(key)
+            if existing is None:
+                params[key] = p
+            else:
+                if not existing.description and p.description:
+                    existing.description = p.description
+                if not existing.value_hint and p.value_hint:
+                    existing.value_hint = p.value_hint
+                existing.has_value = existing.has_value or p.has_value
+                if p.name != existing.name and p.name not in existing.aliases:
+                    existing.aliases.append(p.name)
+
+    description = "\n".join(dict.fromkeys(descriptions)).strip()
+    deduped_examples = list(dict.fromkeys(examples))
+    return description, list(params.values()), deduped_examples
+
+
 def _extract_help_block_data(cpp_path: Path) -> tuple[str, list[CommandletParam], list[str]]:
     """
     Extract description, params, and examples from .cpp help block.
@@ -410,33 +749,18 @@ def _extract_help_block_data(cpp_path: Path) -> tuple[str, list[CommandletParam]
     except OSError:
         return "", [], []
 
-    description = ""
-    params: list[CommandletParam] = []
+    description, params, examples = _extract_help_block_data_from_text(text)
 
-    # Try to find and parse help block
-    help_block = _find_help_block(text)
-    if help_block:
-        description, params = _parse_help_block(help_block)
-
-    # Get usage examples
-    examples = _extract_usage_examples(cpp_path)
+    fallback_examples = _extract_usage_examples(cpp_path)
+    for ex in fallback_examples:
+        if ex not in examples:
+            examples.append(ex)
 
     return description, params, examples
 
 
-def _extract_cpp_description(cpp_path: Path, class_name: str) -> str:
-    """
-    Extract description from comment block above the constructor in .cpp.
-
-    Many UE commandlets have their usage/description as a ``/** ... */``
-    block right before the constructor definition, not in the header.
-    """
-    try:
-        text = cpp_path.read_text(encoding="utf-8", errors="replace")
-    except OSError:
-        return ""
-
-    # Find constructor: UClassName::UClassName(
+def _extract_cpp_description_from_text(text: str, class_name: str) -> str:
+    """Text-driven variant of :func:`_extract_cpp_description`."""
     ctor_pattern = re.compile(
         re.escape(class_name) + r"::" + re.escape(class_name) + r"\s*\(",
     )
@@ -446,15 +770,12 @@ def _extract_cpp_description(cpp_path: Path, class_name: str) -> str:
 
     before = text[:m.start()]
 
-    # Try /** ... */ block
     cm = re.search(r"/\*\*?([\s\S]*?)\*/\s*$", before)
     if cm:
         cleaned = _clean_comment(cm.group(0))
-        # Skip trivial single-word comments (just the class name)
         if cleaned and len(cleaned) > 20:
             return cleaned
 
-    # Try consecutive // lines
     lines: list[str] = []
     for line in reversed(before.splitlines()):
         stripped = line.strip()
@@ -471,6 +792,20 @@ def _extract_cpp_description(cpp_path: Path, class_name: str) -> str:
             return cleaned
 
     return ""
+
+
+def _extract_cpp_description(cpp_path: Path, class_name: str) -> str:
+    """
+    Extract description from comment block above the constructor in .cpp.
+
+    Many UE commandlets have their usage/description as a ``/** ... */``
+    block right before the constructor definition, not in the header.
+    """
+    try:
+        text = cpp_path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return ""
+    return _extract_cpp_description_from_text(text, class_name)
 
 
 def _find_matching_cpp(header: Path) -> Optional[Path]:
@@ -539,6 +874,151 @@ def _find_matching_cpp(header: Path) -> Optional[Path]:
     return None
 
 
+    return None
+
+
+# ---------------------------------------------------------------------------
+# Cross-file implementation lookup
+# ---------------------------------------------------------------------------
+
+# Matches "UClassName::" appearing at a definition site
+# (method def, static member def, free-function scope). Used both to build
+# the file→classes index and to locate class-scoped regions inside a .cpp.
+_CLASS_QUALIFIER_RE = re.compile(r"\b(U\w+Commandlet)::")
+
+
+def _build_cpp_index(root: Path) -> dict[str, list[Path]]:
+    """Index: class_name -> list of .cpp files that reference ``ClassName::``.
+
+    One pass over every ``.cpp`` in ``root`` (respecting ``_SKIP_DIRS``). The
+    same class can be referenced by several files (e.g. forward decls in
+    foreign .cpp, or helpers); callers are expected to verify by scoping.
+    """
+    index: dict[str, list[Path]] = {}
+    for dirpath, dirnames, filenames in os.walk(root):
+        dirnames[:] = [d for d in dirnames if d not in _SKIP_DIRS]
+        for fn in filenames:
+            if not fn.endswith(".cpp"):
+                continue
+            cpp = Path(dirpath) / fn
+            try:
+                text = cpp.read_text(encoding="utf-8", errors="replace")
+            except OSError:
+                continue
+            seen_in_file: set[str] = set()
+            for match in _CLASS_QUALIFIER_RE.finditer(text):
+                cls = match.group(1)
+                if cls in seen_in_file:
+                    continue
+                seen_in_file.add(cls)
+                index.setdefault(cls, []).append(cpp)
+    return index
+
+
+def _extract_class_scope(text: str, class_name: str) -> str:
+    """Return the concatenation of all regions in ``text`` that belong to
+    ``UClassName`` — method bodies, ctor/dtor, and file-scope definitions
+    (``const FString UClassName::UsageText(...);``).
+
+    This avoids cross-contamination when several commandlet classes share a
+    single .cpp. Returns empty string when the class has no definitions.
+    """
+    parts: list[str] = []
+    escaped = re.escape(class_name)
+
+    # 1. Method/ctor definitions: "[<return-ish>] UClassName::Name(args) [const] {"
+    # The signature may span several lines; we accept anything except ';' and '{'
+    # between the ')' and the opening '{' to handle ctor initializer lists
+    # (": Base(...), Field(val)") as well as C++ trailing-return/cv qualifiers.
+    # The leading "return type" part is optional — constructors have no return
+    # type and are written "UFoo::UFoo(...) : ... {".
+    method_re = re.compile(
+        r"(?:^|\n)[\w:<>,&*\s\[\]]*?\b"
+        + escaped
+        + r"::\w+\s*\([^;{}]*?\)\s*(?:const\s*)?"
+        r"(?::[^{;]+)?"
+        r"\{",
+    )
+    for match in method_re.finditer(text):
+        body = _extract_balanced_braces(text, match.end() - 1)
+        if body is not None:
+            parts.append(body)
+
+    # 2. File-scope variable definitions with parenthesised initializer, e.g.
+    # "const FString UClass::UsageText(TEXT("...") TEXT("..."));"
+    var_re = re.compile(
+        r"(?:^|\n)[\w:<>,&*\s\[\]]*?\b"
+        + escaped
+        + r"::\w+\s*\([\s\S]*?\)\s*;",
+    )
+    for match in var_re.finditer(text):
+        parts.append(match.group(0))
+
+    return "\n".join(parts)
+
+
+def _merge_param_into(target: dict[str, CommandletParam], src: CommandletParam) -> None:
+    """Additive merge of ``src`` into the ``target`` dict keyed by casefolded name.
+
+    description / value_hint: first non-empty wins.
+    has_value / is_negated:  OR across sources.
+    aliases:                 union of alternate spellings.
+    """
+    key = src.name.casefold()
+    existing = target.get(key)
+    if existing is None:
+        target[key] = src
+        return
+    if not existing.description and src.description:
+        existing.description = src.description
+    if not existing.value_hint and src.value_hint:
+        existing.value_hint = src.value_hint
+    existing.has_value = existing.has_value or src.has_value
+    existing.is_negated = existing.is_negated or src.is_negated
+    if src.name != existing.name and src.name not in existing.aliases:
+        existing.aliases.append(src.name)
+    for alias in src.aliases:
+        if alias != existing.name and alias not in existing.aliases:
+            existing.aliases.append(alias)
+
+
+def _collect_from_cpp(
+    cpp_path: Path,
+    class_name: str,
+) -> tuple[list[CommandletParam], str, list[str], str, str]:
+    """Extract params / description / examples / help_text / cpp-comment-desc
+    for a single commandlet class from a .cpp file.
+
+    If ``class_name`` occurs in the file, only regions belonging to that class
+    are scanned, so neighbouring classes in the same .cpp do not leak. If the
+    class is not referenced at all (e.g. the file is the canonical per-class
+    source), the whole file text is used — preserving prior behaviour for
+    one-class-per-file layouts.
+    """
+    try:
+        text = cpp_path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return [], "", [], "", ""
+
+    scope = _extract_class_scope(text, class_name)
+    if not scope:
+        scope = text
+
+    basic = _extract_params_from_text(scope)
+    help_desc, help_params, examples = _extract_help_block_data_from_text(scope)
+    help_text = _extract_help_text_from_text(scope)
+    cpp_desc = _extract_cpp_description_from_text(scope, class_name) or \
+               _extract_cpp_description_from_text(text, class_name)
+
+    merged: dict[str, CommandletParam] = {}
+    for p in help_params:
+        _merge_param_into(merged, p)
+    for p in basic:
+        _merge_param_into(merged, p)
+
+    return list(merged.values()), help_desc, examples, help_text, cpp_desc
+
+
 def scan_directory(
     root: Path,
     source: CommandletSource,
@@ -549,13 +1029,23 @@ def scan_directory(
 
     Uses os.walk with directory pruning to avoid stack overflow
     on large UE projects (known issue with rglob).
+
+    For each commandlet class discovered in a .h file, implementation is
+    resolved in two stages:
+      1. Per-header heuristic (``_find_matching_cpp``) — fast path for the
+         common one-class-per-file layout.
+      2. Cross-file index built from every .cpp — handles the case where
+         several commandlets share one .cpp (e.g. ``ContentCommandlets.cpp``
+         hosts ``UResavePackagesCommandlet`` and five others).
+
+    Data harvested from implementations is merged additively; no source is
+    considered authoritative.
     """
     commandlets: list[CommandletInfo] = []
     header_files: list[Path] = []
 
     # Phase 1: collect header files
     for dirpath, dirnames, filenames in os.walk(root):
-        # Prune skippable directories in-place
         dirnames[:] = [d for d in dirnames if d not in _SKIP_DIRS]
         for fn in filenames:
             if fn.endswith(".h"):
@@ -564,6 +1054,9 @@ def scan_directory(
     total = len(header_files)
     if total == 0:
         return commandlets
+
+    # Phase 1b: cross-file index of UXxxCommandlet:: references.
+    cpp_index = _build_cpp_index(root)
 
     # Phase 2: scan headers for commandlet classes
     for idx, header in enumerate(header_files):
@@ -590,49 +1083,50 @@ def scan_directory(
             cmdlet_name = name_m.group(1)
             description = _extract_description(text, m.start())
 
-            # Try to find matching .cpp for params and help text
-            cpp_path = _find_matching_cpp(header)
-            params: list[CommandletParam] = []
-            help_text = ""
+            # Resolve implementation file(s).
+            candidate_cpps: list[Path] = []
+            primary = _find_matching_cpp(header)
+            if primary is not None:
+                candidate_cpps.append(primary)
+            for cpp in cpp_index.get(class_name, []):
+                if cpp not in candidate_cpps:
+                    candidate_cpps.append(cpp)
+
+            merged_params: dict[str, CommandletParam] = {}
+            help_desc_parts: list[str] = []
             examples: list[str] = []
+            help_text = ""
+            cpp_desc = ""
 
-            if cpp_path:
-                # First, get basic params from code patterns
-                basic_params = _extract_params_from_cpp(cpp_path)
+            for cpp in candidate_cpps:
+                cpp_params, cpp_help_desc, cpp_examples, cpp_help_text, cpp_cdesc = \
+                    _collect_from_cpp(cpp, class_name)
+                for p in cpp_params:
+                    _merge_param_into(merged_params, p)
+                if cpp_help_desc:
+                    help_desc_parts.append(cpp_help_desc)
+                for ex in cpp_examples:
+                    if ex not in examples:
+                        examples.append(ex)
+                if not help_text and cpp_help_text:
+                    help_text = cpp_help_text
+                if not cpp_desc and cpp_cdesc:
+                    cpp_desc = cpp_cdesc
 
-                # Then try to extract rich data from help block (UE_LOG in -help handler)
-                help_desc, help_params, examples = _extract_help_block_data(cpp_path)
+            # Legacy comment-scraped examples from the primary .cpp (// Examples:)
+            if primary is not None:
+                for ex in _extract_usage_examples(primary):
+                    if ex not in examples:
+                        examples.append(ex)
 
-                # Merge params: help_params have descriptions, basic_params may have extras
-                params_dict: dict[str, CommandletParam] = {}
+            params = list(merged_params.values())
 
-                # Add basic params first
-                for p in basic_params:
-                    params_dict[p.name.lower()] = p
-
-                # Override/add with help params (they have descriptions)
-                for p in help_params:
-                    existing = params_dict.get(p.name.lower())
-                    if existing:
-                        # Keep has_value from either source
-                        existing.description = p.description
-                        existing.has_value = existing.has_value or p.has_value
-                    else:
-                        params_dict[p.name.lower()] = p
-
-                params = list(params_dict.values())
-
-                # Try HelpDescription field
-                help_text = _extract_help_text(cpp_path)
-
-                # Use help block description if we have one and no header description
-                if help_desc and not description:
-                    description = help_desc
-
-                # Fallback: extract description from .cpp comment block
-                # above constructor (many UE commandlets document there)
-                if not description:
-                    description = _extract_cpp_description(cpp_path, class_name)
+            # description precedence: header doc-comment wins, then UE_LOG help,
+            # then ctor-leading comment in .cpp.
+            if not description and help_desc_parts:
+                description = "\n".join(dict.fromkeys(help_desc_parts)).strip()
+            if not description and cpp_desc:
+                description = cpp_desc
 
             try:
                 rel = str(header.relative_to(root))
