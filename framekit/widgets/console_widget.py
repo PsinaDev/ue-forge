@@ -31,10 +31,10 @@ from PySide6.QtGui import (
     QScreen,
 )
 
-from ue_forge.shared.styles import COLORS, FONTS, RADIUS
-from ue_forge.shared.icons import Icons
-from ue_forge.shared.localization import tr
-from ue_forge.shared.types import LogLevel, LogMessage
+from framekit.styles import COLORS, FONTS, RADIUS
+from framekit.icons import Icons
+from framekit.localization import tr
+from framekit.types import LogLevel, LogMessage
 
 
 # Combo messages for copy easter egg

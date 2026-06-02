@@ -27,9 +27,9 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt
 
-from ue_forge.shared.styles import COLORS, FONTS
-from ue_forge.shared.config import get_config_manager
-from ue_forge.shared.localization import (
+from framekit.styles import COLORS, FONTS
+from framekit.config import get_config_manager
+from framekit.localization import (
     tr,
     get_current_language,
     set_language,

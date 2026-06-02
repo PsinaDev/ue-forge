@@ -21,7 +21,7 @@ from .types import (
     LogLevel,
     LogMessage,
 )
-from ue_forge.shared.platform_utils import platform_handler
+from ue_forge.platform import ue_platform_handler as platform_handler
 
 
 LogCallback = Callable[[LogMessage], None]

@@ -14,8 +14,8 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt
 
-from ue_forge.shared.styles import COLORS, FONTS, RADIUS
-from ue_forge.shared.localization import tr
+from framekit.styles import COLORS, FONTS, RADIUS
+from framekit.localization import tr
 
 
 class CommandDialog(QDialog):

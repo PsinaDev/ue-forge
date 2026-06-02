@@ -23,9 +23,9 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt, Signal
 
-from ue_forge.shared.styles import COLORS, FONTS
-from ue_forge.shared.localization import tr
-from ue_forge.shared.dialogs import MessageDialog, SettingsTab
+from framekit.styles import COLORS, FONTS
+from framekit.localization import tr
+from framekit.dialogs import MessageDialog, SettingsTab
 from .engine_finder import EngineFinder
 
 

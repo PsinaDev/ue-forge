@@ -1,6 +1,6 @@
 """Plugin Builder translations — registered at import time."""
 
-from ue_forge.shared.localization import register_translations
+from framekit.localization import register_translations
 
 register_translations({
     "en": {
@@ -139,6 +139,13 @@ register_translations({
         "build_in_progress": "Build in Progress",
         "cancel_and_exit": "A build is in progress. Cancel and exit?",
         "generate_command_error": "Failed to generate build command. Check all parameters.",
+
+        # Status text (formerly in framekit shared strings)
+        "building": "Building...",
+
+        # Drop zone / path input (formerly in framekit shared strings)
+        "invalid_drop_file": "Invalid file or folder doesn't contain .uplugin",
+        "path_to_plugin_file": "Path to plugin file...",
     },
 
     "ru": {
@@ -277,5 +284,12 @@ register_translations({
         "build_in_progress": "Идёт сборка",
         "cancel_and_exit": "Сборка в процессе. Отменить и выйти?",
         "generate_command_error": "Не удалось сформировать команду. Проверьте параметры.",
+
+        # Status text (formerly in framekit shared strings)
+        "building": "Сборка...",
+
+        # Drop zone / path input (formerly in framekit shared strings)
+        "invalid_drop_file": "Неверный файл или папка не содержит .uplugin",
+        "path_to_plugin_file": "Путь к файлу плагина...",
     },
 })

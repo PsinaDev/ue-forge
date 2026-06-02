@@ -32,15 +32,15 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt, QTimer, Signal, Slot, QThread, QObject, QSize
 
-from ue_forge.shared.styles import COLORS, FONTS, RADIUS
-from ue_forge.shared.icons import Icons
-from ue_forge.shared.widgets import PathInput, ConsoleWidget
-from ue_forge.shared.dialogs import MessageDialog
-from ue_forge.shared.types import LogLevel, LogMessage
-from ue_forge.shared.localization import tr
+from framekit.styles import COLORS, FONTS, RADIUS
+from framekit.icons import Icons
+from framekit.widgets import PathInput, ConsoleWidget
+from framekit.dialogs import MessageDialog
+from framekit.types import LogLevel, LogMessage, StatusKind
+from framekit.localization import tr
 from pyside_frameless import DropZoneWidget
 
-from ue_forge.shared.config import get_config_manager
+from ue_forge.config import get_ue_config_manager as get_config_manager
 
 from .core import (
     CommandletInfo,
@@ -1388,7 +1388,7 @@ class CommandletRunnerPage(QWidget):
     PAGE_ID = "commandlet_runner"
     PAGE_ICON = "TERMINAL"
 
-    status_changed = Signal(str, str)
+    status_changed = Signal(object, str)
 
     LEFT_PANEL_WIDTH = 440
 
@@ -1521,7 +1521,7 @@ class CommandletRunnerPage(QWidget):
         total = len(engine_cmds or []) + len(project_cmds or [])
         if total:
             self.status_changed.emit(
-                "success",
+                StatusKind.SUCCESS,
                 tr("cmd_scan_done", count=total),
             )
 
@@ -1621,7 +1621,7 @@ class CommandletRunnerPage(QWidget):
 
         self._detail.show_console()
         self._detail.set_running(True, cmd_info.name)
-        self.status_changed.emit("running", tr("cmd_in_progress"))
+        self.status_changed.emit(StatusKind.RUNNING, tr("cmd_in_progress"))
 
         self._exec_thread = QThread()
         self._exec_worker = _RunWorker(
@@ -1652,16 +1652,16 @@ class CommandletRunnerPage(QWidget):
     def _on_exec_done(self, result: RunResult) -> None:
         self._detail.set_running(False)
         if result.status == RunStatus.SUCCESS:
-            self.status_changed.emit("success", tr("success"))
+            self.status_changed.emit(StatusKind.SUCCESS, tr("success"))
             MessageDialog.information(
                 self,
                 tr("cmd_complete"),
                 tr("cmd_successful", time=result.duration_seconds),
             )
         elif result.status == RunStatus.CANCELLED:
-            self.status_changed.emit("idle", tr("cancelled"))
+            self.status_changed.emit(StatusKind.IDLE, tr("cancelled"))
         else:
-            self.status_changed.emit("failed", tr("failed"))
+            self.status_changed.emit(StatusKind.FAILED, tr("failed"))
             MessageDialog.error(
                 self,
                 tr("cmd_failed_title"),
@@ -1676,7 +1676,7 @@ class CommandletRunnerPage(QWidget):
         return []
 
     def show_settings(self) -> None:
-        from ue_forge.shared.dialogs import SettingsDialog
+        from framekit.dialogs import SettingsDialog
         SettingsDialog(self, extra_tabs=self.get_settings_tabs()).exec()
 
     def can_close(self) -> bool:

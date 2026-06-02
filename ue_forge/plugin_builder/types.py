@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 
 # Re-exported from shared for convenience
-from ue_forge.shared.types import LogLevel, LogMessage
+from framekit.types import LogLevel, LogMessage
 from typing import Optional, List, Dict, Any
 from pathlib import Path
 

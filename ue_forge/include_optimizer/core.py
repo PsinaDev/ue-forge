@@ -20,7 +20,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 
-from ue_forge.shared.types import LogLevel, LogMessage
+from framekit.types import LogLevel, LogMessage
 
 logger = logging.getLogger(__name__)
 

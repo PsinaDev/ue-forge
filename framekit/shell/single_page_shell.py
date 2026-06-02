@@ -1,32 +1,34 @@
 """
-Standalone shell for running a single tool page without the sidebar.
+Standalone shell for running a single tool page without a sidebar.
 
-Used when building individual .exe files (e.g. Plugin Builder standalone).
-Inherits :class:`FramelessWindow` and wraps a single page widget with
-a simple title bar.
+Used when building an individual tool into its own standalone executable.
+Inherits :class:`pyside_frameless.FramelessWindow` and wraps a single
+page widget with a simple title bar.
 """
 
-import sys
-from pathlib import Path
-from typing import Optional
+from __future__ import annotations
 
+from pathlib import Path
+
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QCloseEvent, QIcon, QPixmap
 from PySide6.QtWidgets import (
-    QWidget,
-    QVBoxLayout,
+    QFrame,
     QHBoxLayout,
     QLabel,
     QPushButton,
-    QFrame,
+    QVBoxLayout,
+    QWidget,
 )
-from PySide6.QtCore import Qt
-from PySide6.QtGui import QCloseEvent, QPixmap, QIcon
 
 from pyside_frameless import FramelessWindow
-from ue_forge.shared.styles import COLORS, FONTS, get_main_stylesheet
-from ue_forge.shared.icons import Icons
-from ue_forge.shared.localization import tr
-from ue_forge.shared.widgets import StatusBadge
-from ue_forge.shared.dialogs import SettingsDialog
+
+from framekit.dialogs import SettingsDialog
+from framekit.icons import Icons
+from framekit.localization import tr
+from framekit.styles import COLORS, FONTS, get_main_stylesheet
+from framekit.types import StatusKind
+from framekit.widgets import StatusBadge
 
 
 class SinglePageShell(FramelessWindow):
@@ -35,39 +37,67 @@ class SinglePageShell(FramelessWindow):
 
     Usage::
 
-        shell = SinglePageShell(PluginBuilderPage())
+        shell = SinglePageShell(
+            page=MyPage(),
+            title="My App",
+            icon_path=Path("icons/my_app.png"),
+        )
         shell.show()
     """
 
-    def __init__(self, page: QWidget, parent: Optional[QWidget] = None):
+    def __init__(
+        self,
+        page: QWidget,
+        title: str,
+        icon_path: Path | None = None,
+        parent: QWidget | None = None,
+        min_width: int = 1000,
+        min_height: int = 600,
+        width: int = 1100,
+        height: int = 750,
+    ):
         super().__init__(parent)
         self._page = page
+        self._title = title
+        self._icon_path = icon_path
 
-        self._setup_window()
+        self._setup_window(min_width, min_height, width, height)
         self._setup_ui()
 
-        # Connect status signal
         if hasattr(page, "status_changed"):
             page.status_changed.connect(self._on_status)
 
-    def _setup_window(self) -> None:
-        title = self._page.page_title() if hasattr(self._page, "page_title") else "UE Forge"
-        self.setWindowTitle(title)
-        self.setMinimumSize(1000, 600)
-        self.resize(1100, 750)
+    # -- Qt overrides ---------------------------------------------------
+
+    def on_maximize_changed(self, is_maximized: bool) -> None:
+        icon = "MAXIMIZE_2" if is_maximized else "SQUARE"
+        self._max_btn.setIcon(Icons.get_icon(icon, 12, COLORS["text_dim"]))
+
+    def closeEvent(self, event: QCloseEvent) -> None:
+        if hasattr(self._page, "can_close") and not self._page.can_close():
+            event.ignore()
+            return
+        if hasattr(self._page, "cleanup"):
+            self._page.cleanup()
+        event.accept()
+
+    # -- setup ----------------------------------------------------------
+
+    def _setup_window(
+        self, min_width: int, min_height: int, width: int, height: int
+    ) -> None:
+        window_title = (
+            self._page.page_title()
+            if hasattr(self._page, "page_title")
+            else self._title
+        )
+        self.setWindowTitle(window_title)
+        self.setMinimumSize(min_width, min_height)
+        self.resize(width, height)
         self.setStyleSheet(get_main_stylesheet())
 
-        icon_path = self._get_icon_path()
-        if icon_path:
-            self.setWindowIcon(QIcon(icon_path))
-
-    def _get_icon_path(self) -> str:
-        if getattr(sys, "frozen", False):
-            base = Path(sys._MEIPASS)
-            p = base / "ue_forge" / "shared" / "icon.png"
-        else:
-            p = Path(__file__).resolve().parent.parent / "shared" / "icon.png"
-        return str(p) if p.exists() else ""
+        if self._icon_path and self._icon_path.exists():
+            self.setWindowIcon(QIcon(str(self._icon_path)))
 
     def _setup_ui(self) -> None:
         central = QWidget()
@@ -83,24 +113,24 @@ class SinglePageShell(FramelessWindow):
     def _create_header(self) -> QWidget:
         header = QFrame()
         header.setFixedHeight(40)
-        header.setStyleSheet(f"""
+        header.setStyleSheet(
+            f"""
             QFrame {{
                 background-color: {COLORS['bg_secondary']};
                 border: none;
                 border-bottom: 1px solid {COLORS['border_default']};
             }}
-        """)
+            """
+        )
         self.set_title_bar_widget(header)
 
         lay = QHBoxLayout(header)
         lay.setContentsMargins(12, 0, 8, 0)
         lay.setSpacing(10)
 
-        # Icon
-        icon_path = self._get_icon_path()
         logo = QLabel()
-        if icon_path and Path(icon_path).exists():
-            px = QPixmap(icon_path).scaled(
+        if self._icon_path and self._icon_path.exists():
+            px = QPixmap(str(self._icon_path)).scaled(
                 24, 24,
                 Qt.AspectRatioMode.KeepAspectRatio,
                 Qt.TransformationMode.SmoothTransformation,
@@ -112,32 +142,39 @@ class SinglePageShell(FramelessWindow):
         logo.setStyleSheet("background: transparent;")
         lay.addWidget(logo)
 
-        title_text = self._page.page_title() if hasattr(self._page, "page_title") else "UE Forge"
+        title_text = (
+            self._page.page_title()
+            if hasattr(self._page, "page_title")
+            else self._title
+        )
         title = QLabel(title_text)
-        title.setStyleSheet(f"""
+        title.setStyleSheet(
+            f"""
             color: {COLORS['text_primary']};
             font-size: {FONTS['size_sm']};
             font-weight: 600;
-        """)
+            """
+        )
         lay.addWidget(title)
         lay.addStretch()
 
-        self._status_badge = StatusBadge(status="idle", text=tr("ready"))
+        self._status_badge = StatusBadge(kind=StatusKind.IDLE, text=tr("ready"))
         lay.addWidget(self._status_badge)
 
-        # Settings
         settings_btn = QPushButton()
         settings_btn.setIcon(Icons.get_icon("SETTINGS", 16, COLORS["text_dim"]))
         settings_btn.setFixedSize(28, 28)
         settings_btn.setToolTip(tr("settings"))
         settings_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        settings_btn.setStyleSheet(f"""
+        settings_btn.setStyleSheet(
+            f"""
             QPushButton {{
                 background: transparent; border: none;
                 border-radius: 4px; padding: 6px;
             }}
             QPushButton:hover {{ background-color: {COLORS['bg_tertiary']}; }}
-        """)
+            """
+        )
         settings_btn.clicked.connect(self._on_settings)
         lay.addWidget(settings_btn)
 
@@ -184,9 +221,7 @@ class SinglePageShell(FramelessWindow):
 
         return header
 
-    def on_maximize_changed(self, is_maximized: bool) -> None:
-        icon = "MAXIMIZE_2" if is_maximized else "SQUARE"
-        self._max_btn.setIcon(Icons.get_icon(icon, 12, COLORS["text_dim"]))
+    # -- handlers -------------------------------------------------------
 
     def _on_settings(self) -> None:
         tabs = []
@@ -194,13 +229,5 @@ class SinglePageShell(FramelessWindow):
             tabs = self._page.get_settings_tabs()
         SettingsDialog(self, extra_tabs=tabs).exec()
 
-    def _on_status(self, badge: str, text: str) -> None:
-        self._status_badge.set_status(badge, text)
-
-    def closeEvent(self, event: QCloseEvent) -> None:
-        if hasattr(self._page, "can_close") and not self._page.can_close():
-            event.ignore()
-            return
-        if hasattr(self._page, "cleanup"):
-            self._page.cleanup()
-        event.accept()
+    def _on_status(self, kind: StatusKind, text: str) -> None:
+        self._status_badge.set_status(kind, text)

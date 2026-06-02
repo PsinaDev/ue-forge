@@ -38,18 +38,22 @@ Discover and execute UE commandlets. Scans engine and project source for `UComma
 ## Architecture
 
 ```
+framekit/                  # Reusable UI chassis — no Unreal-specific code
+├── styles.py              # Colors, fonts, radii (zinc + cyan theme)
+├── icons.py               # Lucide SVG icon renderer
+├── localization.py        # i18n (EN/RU), per-module registration
+├── config.py              # Persistent settings (JSON)
+├── platform.py            # Per-OS config dirs + process control
+├── app.py                 # run_host() / run_standalone() bootstrap
+├── widgets/               # PathInput, ConsoleWidget, StatusBadge, ScrollingLabel
+├── dialogs/               # MessageDialog, SettingsDialog
+└── shell/                 # HostWindow (sidebar), SinglePageShell, ToolPage protocol
+
 ue_forge/
-├── host/                  # Host window — sidebar, page switching, title bar
-│   ├── host_window.py     # HostWindow (FramelessWindow subclass)
-│   ├── single_page_shell.py
-│   └── page_protocol.py   # Page interface contract
-├── shared/                # Cross-module infrastructure
-│   ├── styles.py          # Colors, fonts, radii (zinc + cyan theme)
-│   ├── icons.py           # Lucide SVG icon renderer
-│   ├── localization.py    # i18n (EN/RU), per-module registration
-│   ├── config.py          # Persistent settings (JSON)
-│   ├── widgets/           # PathInput, ConsoleWidget, StatusBadge
-│   └── dialogs/           # MessageDialog, SettingsDialog
+├── config.py              # UE settings — engines, build options, favorites, notes
+├── platform.py            # UE platform — engine discovery, UAT/editor naming
+├── assets.py              # Resource path resolution (dev + frozen)
+├── resources/             # App icon
 ├── plugin_builder/        # Plugin Builder module
 ├── renamer/               # Renamer module
 ├── include_optimizer/     # Include Optimizer module
@@ -60,6 +64,8 @@ pyside_frameless/          # Git submodule → github.com/PsinaDev/pyside-framel
 ├── frameless_window.py    # FramelessWindow with Aero Snap
 └── drop_overlay.py        # Animated drag-and-drop overlay
 ```
+
+UE Forge is built on **framekit** — a self-contained UI chassis (themed widgets, dialogs, sidebar and standalone shells, JSON config, localization and a one-call bootstrap) with no Unreal-specific code. `ue_forge` layers the UE specifics on top: engine discovery, build automation and the tool pages. Every tool page implements the same `ToolPage` contract, so it drops into either the combined host window or its own standalone shell.
 
 Each tool module follows the same structure: `core.py` (pure Python, no Qt), `page.py` (PySide6 UI), `strings.py` (translations), `__main__.py` (standalone entry point).
 
@@ -91,7 +97,7 @@ pip install pyinstaller
 pyinstaller specs/ue_forge.spec
 ```
 
-Individual tool builds: `specs/plugin_builder.spec`, `specs/renamer.spec`, `specs/include_optimizer.spec`.
+Individual tool builds: `specs/plugin_builder.spec`, `specs/renamer.spec`, `specs/include_optimizer.spec`, `specs/commandlet_runner.spec`.
 
 ## Dependencies
 

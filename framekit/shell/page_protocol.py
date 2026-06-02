@@ -1,15 +1,17 @@
 """
 Protocol that every tool page must implement.
 
-Both the multi-page HostWindow and the standalone SinglePageShell
-interact with pages through this interface.
+Both the multi-page :class:`HostWindow` and the standalone
+:class:`SinglePageShell` interact with pages through this interface.
 """
 
-from typing import List, Protocol, runtime_checkable
+from __future__ import annotations
+
+from typing import Protocol, runtime_checkable
 
 from PySide6.QtCore import Signal
 
-from ue_forge.shared.dialogs.settings_dialog import SettingsTab
+from framekit.dialogs import SettingsTab
 
 
 @runtime_checkable
@@ -17,12 +19,12 @@ class ToolPage(Protocol):
     """
     Interface for a tool page widget.
 
-    Class-level constants (set as class attributes):
-        PAGE_ID:   str  — unique slug, e.g. ``"plugin_builder"``
-        PAGE_ICON: str  — icon name from :class:`Icons`, e.g. ``"HAMMER"``
+    Class-level attributes:
+        PAGE_ID:   Unique slug (e.g. ``"plugin_builder"``).
+        PAGE_ICON: Icon name from :class:`framekit.icons.Icons`.
 
     Signals:
-        status_changed(str, str)  — (badge_status, text)
+        status_changed(StatusKind, str): ``(visual_category, free_text)``.
     """
 
     PAGE_ID: str
@@ -33,7 +35,7 @@ class ToolPage(Protocol):
         """Localised display title for sidebar / title bar."""
         ...
 
-    def get_settings_tabs(self) -> List[SettingsTab]:
+    def get_settings_tabs(self) -> list[SettingsTab]:
         """Return extra settings tabs contributed by this page."""
         ...
 

@@ -18,7 +18,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Callable, Optional
 
-from ue_forge.shared.types import LogLevel, LogMessage
+from framekit.types import LogLevel, LogMessage
 
 
 LogCallback = Callable[[LogMessage], None]
@@ -1177,7 +1177,7 @@ def resolve_engine_path(project_path: Path) -> Optional[Path]:
         return Path(assoc)
 
     # Try to find via config manager
-    from ue_forge.shared.config import get_config_manager
+    from ue_forge.config import get_ue_config_manager as get_config_manager
     config = get_config_manager()
     engines = config.load_engines()
 
@@ -1212,7 +1212,7 @@ def resolve_engine_path(project_path: Path) -> Optional[Path]:
 
 def get_editor_cmd_path(engine_path: Path) -> Optional[Path]:
     """Get path to UnrealEditor-Cmd executable."""
-    from ue_forge.shared.platform_utils import platform_handler
+    from ue_forge.platform import ue_platform_handler as platform_handler
     handler = platform_handler()
     binaries = handler.get_binaries_subdir()
 

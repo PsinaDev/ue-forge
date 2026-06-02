@@ -206,7 +206,7 @@ def get_indicator_icon_path(indicator_type: str, border_color: str, fill_color: 
     svg_content = template.format(border=border_color, fill=fill_color or border_color)
 
     # Create temp directory for icons if needed
-    temp_dir = Path(tempfile.gettempdir()) / "ue_forge_icons"
+    temp_dir = Path(tempfile.gettempdir()) / "framekit_icons"
     temp_dir.mkdir(exist_ok=True)
 
     # Save SVG file

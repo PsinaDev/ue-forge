@@ -30,12 +30,12 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt, QTimer, Signal, Slot, QThread, QObject
 
-from ue_forge.shared.styles import COLORS, FONTS, RADIUS
-from ue_forge.shared.icons import Icons
-from ue_forge.shared.widgets import PathInput, ConsoleWidget
-from ue_forge.shared.dialogs import MessageDialog
-from ue_forge.shared.types import LogLevel, LogMessage
-from ue_forge.shared.localization import tr
+from framekit.styles import COLORS, FONTS, RADIUS
+from framekit.icons import Icons
+from framekit.widgets import PathInput, ConsoleWidget
+from framekit.dialogs import MessageDialog
+from framekit.types import LogLevel, LogMessage, StatusKind
+from framekit.localization import tr
 from pyside_frameless import DropZoneWidget
 
 from .core import (
@@ -760,7 +760,7 @@ class IncludeOptimizerPage(QWidget):
     PAGE_ID = "include_optimizer"
     PAGE_ICON = "ZAP"
 
-    status_changed = Signal(str, str)
+    status_changed = Signal(object, str)
 
     LEFT_PANEL_WIDTH = 440
 
@@ -1114,7 +1114,7 @@ class IncludeOptimizerPage(QWidget):
         self._console.setVisible(True)
         self._console.clear()
         self._optimize_btn.setEnabled(False)
-        self.status_changed.emit("running", tr("opt_in_progress"))
+        self.status_changed.emit(StatusKind.RUNNING, tr("opt_in_progress"))
 
         self._exec_thread = QThread()
         self._exec_worker = _ExecuteWorker(
@@ -1137,7 +1137,7 @@ class IncludeOptimizerPage(QWidget):
     def _on_exec_done(self, result: OptimizeResult) -> None:
         self._optimize_btn.setEnabled(True)
         if result.status == OptimizeStatus.SUCCESS and not result.errors:
-            self.status_changed.emit("success", tr("success"))
+            self.status_changed.emit(StatusKind.SUCCESS, tr("success"))
             MessageDialog.information(
                 self,
                 tr("opt_complete"),
@@ -1149,7 +1149,7 @@ class IncludeOptimizerPage(QWidget):
                 ),
             )
         else:
-            self.status_changed.emit("failed", tr("failed"))
+            self.status_changed.emit(StatusKind.FAILED, tr("failed"))
             summary = (
                 "\n".join(result.errors[:5]) if result.errors else result.message
             )

@@ -31,6 +31,9 @@ MANIFEST
 #  before PyInstaller builds the exe, so as to inject date/other infos into it.
 *.manifest
 *.spec
+# Public build specs live in specs/ and ship with the repo so anyone can build
+# out of the box. Any .spec outside specs/ (e.g. a private extension) stays out.
+!specs/*.spec
 
 # Installer logs
 pip-log.txt
@@ -193,16 +196,7 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
-
-# Cursor
-#  Cursor is an AI-powered code editor. `.cursorignore` specifies files/directories to
-#  exclude from AI features like autocomplete and code analysis. Recommended for sensitive data
-#  refer to https://docs.cursor.com/context/ignore-files
-.cursorignore
-.cursorindexingignore
-
-# Marimo
-marimo/_static/
-marimo/_lsp/
-__marimo__/
 .idea
+
+# Local-only private extensions — kept entirely out of the public repo
+ue_forge/private/

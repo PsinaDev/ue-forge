@@ -9,9 +9,9 @@ from pathlib import Path
 from typing import Dict, List, Optional, Callable
 
 from .types import EngineInfo
-from ue_forge.shared.types import LogLevel, LogMessage
-from ue_forge.shared.platform_utils import platform_handler
-from ue_forge.shared.config import get_config_manager
+from framekit.types import LogLevel, LogMessage
+from ue_forge.platform import ue_platform_handler as platform_handler
+from ue_forge.config import get_ue_config_manager as get_config_manager
 
 
 LogCallback = Callable[[LogMessage], None]

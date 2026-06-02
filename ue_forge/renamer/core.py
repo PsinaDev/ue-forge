@@ -14,7 +14,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Optional, List, Callable, Dict, Set
 
-from ue_forge.shared.types import LogLevel, LogMessage
+from framekit.types import LogLevel, LogMessage
 
 
 LogCallback = Callable[[LogMessage], None]

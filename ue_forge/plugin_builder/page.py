@@ -24,17 +24,17 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt, QTimer, Signal, Slot, QThread, QObject
 
-from ue_forge.shared.styles import COLORS, FONTS, RADIUS
-from ue_forge.shared.icons import Icons
-from ue_forge.shared.widgets import ConsoleWidget, PathInput, StatusBadge
+from framekit.styles import COLORS, FONTS, RADIUS
+from framekit.icons import Icons
+from framekit.widgets import ConsoleWidget, PathInput, StatusBadge
 from pyside_frameless import DropZoneWidget
 from .info_card import InfoCard
 from .advanced_options_dialog import AdvancedOptionsDialog
 from .command_dialog import CommandDialog
-from ue_forge.shared.dialogs import MessageDialog
-from ue_forge.shared.types import LogLevel, LogMessage
-from ue_forge.shared.localization import tr
-from ue_forge.shared.config import get_config_manager
+from framekit.dialogs import MessageDialog
+from framekit.types import LogLevel, LogMessage, StatusKind
+from framekit.localization import tr
+from ue_forge.config import get_ue_config_manager as get_config_manager
 from .types import BuildConfig, BuildStatus, BuildResult, PluginInfo, EngineInfo
 from .engine_finder import EngineFinder
 from .builder import PluginBuilder
@@ -443,7 +443,7 @@ class PluginBuilderPage(QWidget):
     PAGE_ICON = "HAMMER"
 
     # Signal to host window for status badge updates
-    status_changed = Signal(str, str)
+    status_changed = Signal(object, str)
 
     # Left panel width - FIXED
     LEFT_PANEL_WIDTH = 480
@@ -821,7 +821,7 @@ class PluginBuilderPage(QWidget):
         self._status_reset_timer.stop()
 
         if result.status == BuildStatus.SUCCESS:
-            self.status_changed.emit("success", tr("success"))
+            self.status_changed.emit(StatusKind.SUCCESS, tr("success"))
             self._progress_bar.setValue(100)
 
             MessageDialog.information(
@@ -831,11 +831,11 @@ class PluginBuilderPage(QWidget):
             )
             self._status_reset_timer.start(10000)
         elif result.status == BuildStatus.CANCELLED:
-            self.status_changed.emit("warning", tr("cancelled"))
+            self.status_changed.emit(StatusKind.WARNING, tr("cancelled"))
             self._progress_bar.setValue(0)
             self._status_reset_timer.start(5000)
         else:
-            self.status_changed.emit("failed", tr("failed"))
+            self.status_changed.emit(StatusKind.FAILED, tr("failed"))
             self._progress_bar.setValue(0)
 
             error_summary = "\n".join(result.errors[:5]) if result.errors else result.message
@@ -850,14 +850,14 @@ class PluginBuilderPage(QWidget):
     def _on_build_status_changed(self, status: BuildStatus) -> None:
         """Handle build status change."""
         status_map = {
-            BuildStatus.IDLE: ("idle", tr("ready")),
-            BuildStatus.RUNNING: ("running", tr("building")),
-            BuildStatus.SUCCESS: ("success", tr("success")),
-            BuildStatus.FAILED: ("failed", tr("failed")),
-            BuildStatus.CANCELLED: ("warning", tr("cancelled")),
+            BuildStatus.IDLE: (StatusKind.IDLE, tr("ready")),
+            BuildStatus.RUNNING: (StatusKind.RUNNING, tr("building")),
+            BuildStatus.SUCCESS: (StatusKind.SUCCESS, tr("success")),
+            BuildStatus.FAILED: (StatusKind.FAILED, tr("failed")),
+            BuildStatus.CANCELLED: (StatusKind.WARNING, tr("cancelled")),
         }
 
-        badge_status, text = status_map.get(status, ("idle", tr("ready")))
+        badge_status, text = status_map.get(status, (StatusKind.IDLE, tr("ready")))
         self.status_changed.emit(badge_status, text)
 
     def _set_build_running(self, running: bool) -> None:
@@ -870,14 +870,14 @@ class PluginBuilderPage(QWidget):
 
         if running:
             self._status_reset_timer.stop()
-            self.status_changed.emit("running", tr("building"))
+            self.status_changed.emit(StatusKind.RUNNING, tr("building"))
             self._progress_bar.setValue(0)
 
     @Slot()
     def _reset_status(self) -> None:
         """Reset status badge and progress bar to idle state."""
         if not self._plugin_builder.is_running:
-            self.status_changed.emit("idle", tr("ready"))
+            self.status_changed.emit(StatusKind.IDLE, tr("ready"))
             self._progress_bar.setValue(0)
 
     # ------------------------------------------------------------------
@@ -978,7 +978,7 @@ class PluginBuilderPage(QWidget):
 
     def show_settings(self) -> None:
         """Show settings dialog (called by host window)."""
-        from ue_forge.shared.dialogs import SettingsDialog
+        from framekit.dialogs import SettingsDialog
         dlg = SettingsDialog(self, extra_tabs=self.get_settings_tabs())
         dlg.exec()
 

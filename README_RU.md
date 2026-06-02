@@ -38,18 +38,22 @@ UE Forge — хост-окно с сайдбаром, в которое загр
 ## Архитектура
 
 ```
+framekit/                  # Переиспользуемое UI-шасси — ничего не знает про Unreal
+├── styles.py              # Цвета, шрифты, радиусы (zinc + cyan тема)
+├── icons.py               # Рендер SVG-иконок Lucide
+├── localization.py        # i18n (EN/RU), регистрация по модулям
+├── config.py              # Персистентные настройки (JSON)
+├── platform.py            # Конфиг-пути по ОС + управление процессами
+├── app.py                 # Бутстрап run_host() / run_standalone()
+├── widgets/               # PathInput, ConsoleWidget, StatusBadge, ScrollingLabel
+├── dialogs/               # MessageDialog, SettingsDialog
+└── shell/                 # HostWindow (сайдбар), SinglePageShell, протокол ToolPage
+
 ue_forge/
-├── host/                  # Хост-окно — сайдбар, переключение страниц, заголовок
-│   ├── host_window.py     # HostWindow (наследник FramelessWindow)
-│   ├── single_page_shell.py
-│   └── page_protocol.py   # Контракт интерфейса страницы
-├── shared/                # Общая инфраструктура
-│   ├── styles.py          # Цвета, шрифты, радиусы (zinc + cyan тема)
-│   ├── icons.py           # Рендер SVG-иконок Lucide
-│   ├── localization.py    # i18n (EN/RU), регистрация по модулям
-│   ├── config.py          # Персистентные настройки (JSON)
-│   ├── widgets/           # PathInput, ConsoleWidget, StatusBadge
-│   └── dialogs/           # MessageDialog, SettingsDialog
+├── config.py              # Настройки UE — движки, опции сборки, избранное, заметки
+├── platform.py            # Платформа UE — поиск движков, имена UAT/редактора
+├── assets.py              # Поиск ресурсов (dev + frozen)
+├── resources/             # Иконка приложения
 ├── plugin_builder/        # Модуль Plugin Builder
 ├── renamer/               # Модуль Renamer
 ├── include_optimizer/     # Модуль Include Optimizer
@@ -60,6 +64,8 @@ pyside_frameless/          # Git-подмодуль → github.com/PsinaDev/pysi
 ├── frameless_window.py    # FramelessWindow с Aero Snap
 └── drop_overlay.py        # Анимированный оверлей для drag-and-drop
 ```
+
+UE Forge построен на **framekit** — самодостаточном UI-шасси (тематические виджеты, диалоги, хост- и standalone-оболочки, JSON-конфиг, локализация и бутстрап одним вызовом) без какого-либо UE-специфичного кода. `ue_forge` добавляет сверху специфику UE: поиск движков, автоматизацию сборки и страницы инструментов. Каждая страница реализует один контракт `ToolPage`, поэтому встаёт и в общее хост-окно, и в собственную standalone-оболочку.
 
 Каждый модуль следует одной структуре: `core.py` (чистый Python, без Qt), `page.py` (PySide6 UI), `strings.py` (переводы), `__main__.py` (standalone точка входа).
 
@@ -91,7 +97,7 @@ pip install pyinstaller
 pyinstaller specs/ue_forge.spec
 ```
 
-Сборка отдельных инструментов: `specs/plugin_builder.spec`, `specs/renamer.spec`, `specs/include_optimizer.spec`.
+Сборка отдельных инструментов: `specs/plugin_builder.spec`, `specs/renamer.spec`, `specs/include_optimizer.spec`, `specs/commandlet_runner.spec`.
 
 ## Зависимости
 

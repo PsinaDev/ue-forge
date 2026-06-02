@@ -15,8 +15,8 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Signal, Qt
 from PySide6.QtGui import QColor
 
-from ue_forge.shared.styles import COLORS, FONTS, RADIUS
-from ue_forge.shared.icons import Icons
+from framekit.styles import COLORS, FONTS, RADIUS
+from framekit.icons import Icons
 
 
 class PathInput(QWidget):

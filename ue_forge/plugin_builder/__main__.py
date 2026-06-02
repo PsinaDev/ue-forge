@@ -1,13 +1,22 @@
 """
-Standalone entry point for UE Forge.
+Standalone entry point for the UE Plugin Builder.
 
 Usage:
     python -m ue_forge.plugin_builder
 """
 
-import sys
+from __future__ import annotations
+
 import logging
-from pathlib import Path
+import sys
+
+from framekit import run_standalone
+
+from ue_forge import APP_ORG, APP_SLUG
+from ue_forge.assets import icon_path
+from ue_forge.config import UEForgeConfigManager
+from ue_forge.platform import ue_handler_for
+
 
 logging.basicConfig(
     level=logging.INFO,
@@ -17,37 +26,17 @@ logging.basicConfig(
 
 
 def main() -> int:
-    from ue_forge.shared.config import get_config_manager
-    from ue_forge.shared.localization import set_language, detect_system_language
-
-    config = get_config_manager().load_config()
-    set_language(config.language or detect_system_language())
-
-    from PySide6.QtWidgets import QApplication
-    from PySide6.QtGui import QFont
-
-    from ue_forge.host import SinglePageShell
     from ue_forge.plugin_builder.page import PluginBuilderPage
 
-    app = QApplication([sys.argv[0]])
-    app.setApplicationName("UE Forge")
-    app.setOrganizationName("UEAutomation")
-
-    font = QFont()
-    if sys.platform == "win32":
-        font.setFamily("Segoe UI")
-    elif sys.platform == "darwin":
-        font.setFamily("SF Pro")
-    else:
-        font.setFamily("Ubuntu")
-    font.setPointSize(10)
-    app.setFont(font)
-
-    page = PluginBuilderPage()
-    shell = SinglePageShell(page)
-    shell.show()
-
-    return app.exec()
+    return run_standalone(
+        page_factory=PluginBuilderPage,
+        app_name="UE Plugin Builder",
+        org_name=APP_ORG,
+        app_slug=APP_SLUG,
+        icon_path=icon_path(),
+        platform_handler=ue_handler_for(APP_SLUG),
+        config_manager=UEForgeConfigManager(),
+    )
 
 
 if __name__ == "__main__":

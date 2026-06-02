@@ -1,8 +1,8 @@
 """
-UI Styles for UE Forge.
+Default theme for framekit.
 
-Modern dark theme based on zinc color palette with cyan accents.
-Matches the React/Tailwind reference design.
+Modern dark theme based on zinc palette with cyan accents.
+Tokens are plain dicts — apps may mutate at startup to re-skin.
 """
 
 # Color palette - zinc scale with cyan accent

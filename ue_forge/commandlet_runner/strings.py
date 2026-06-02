@@ -1,6 +1,6 @@
 """Commandlet Runner translations — registered at import time."""
 
-from ue_forge.shared.localization import register_translations
+from framekit.localization import register_translations
 
 register_translations({
     "en": {

@@ -1,6 +1,6 @@
 """Renamer translations — registered at import time."""
 
-from ue_forge.shared.localization import register_translations
+from framekit.localization import register_translations
 
 register_translations({
     "en": {
@@ -56,6 +56,11 @@ register_translations({
         "rename_in_progress": "Rename in Progress",
         "rename_cancel_and_exit": "Rename is in progress. Cancel and exit?",
         "refresh_preview": "Refresh",
+
+        # Migrated from framekit shared strings
+        "scope_backup": "Create backup before changes",
+        "invalid_drop_file": "Invalid file or folder doesn't contain .uplugin",
+        "path_to_plugin_file": "Path to plugin file...",
     },
 
     "ru": {
@@ -111,5 +116,10 @@ register_translations({
         "rename_in_progress": "Идёт переименование",
         "rename_cancel_and_exit": "Идёт переименование. Отменить и выйти?",
         "refresh_preview": "Обновить",
+
+        # Migrated from framekit shared strings
+        "scope_backup": "Создать резервную копию",
+        "invalid_drop_file": "Неверный файл или папка не содержит .uplugin",
+        "path_to_plugin_file": "Путь к файлу плагина...",
     },
 })

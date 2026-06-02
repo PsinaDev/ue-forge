@@ -1,6 +1,6 @@
 """Include Optimizer translations — registered at import time."""
 
-from ue_forge.shared.localization import register_translations
+from framekit.localization import register_translations
 
 register_translations({
     "en": {
@@ -47,6 +47,9 @@ register_translations({
         "opt_successful": "Optimized successfully!\nApplied {count} changes to {files} files in {time:.1f}s",
         "opt_failed": "Optimization Failed",
         "opt_failed_msg": "Optimization failed:\n\n{error}",
+
+        # Migrated from framekit shared strings
+        "scope_backup": "Create backup before changes",
     },
 
     "ru": {
@@ -93,5 +96,8 @@ register_translations({
         "opt_successful": "Оптимизировано!\nПрименено {count} изменений в {files} файлах за {time:.1f}с",
         "opt_failed": "Ошибка оптимизации",
         "opt_failed_msg": "Оптимизация не удалась:\n\n{error}",
+
+        # Migrated from framekit shared strings
+        "scope_backup": "Создать резервную копию",
     },
 })

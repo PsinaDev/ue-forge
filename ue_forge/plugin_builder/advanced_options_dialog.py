@@ -17,8 +17,8 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt
 
-from ue_forge.shared.styles import COLORS, FONTS, RADIUS
-from ue_forge.shared.localization import tr
+from framekit.styles import COLORS, FONTS, RADIUS
+from framekit.localization import tr
 
 
 class StyledCheckBox(QCheckBox):
@@ -26,7 +26,7 @@ class StyledCheckBox(QCheckBox):
     
     def __init__(self, text: str, parent: Optional[QWidget] = None):
         super().__init__(text, parent)
-        from ue_forge.shared.icons import get_indicator_icon_path
+        from framekit.icons import get_indicator_icon_path
         
         checkbox_unchecked = get_indicator_icon_path('checkbox_unchecked', COLORS['text_dim'])
         checkbox_unchecked_hover = get_indicator_icon_path('checkbox_unchecked', COLORS['text_muted'])

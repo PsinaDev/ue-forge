@@ -27,13 +27,13 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt, QTimer, Signal, Slot, QThread, QObject, QSize
 
-from ue_forge.shared.styles import COLORS, FONTS, RADIUS
-from ue_forge.shared.icons import Icons
-from ue_forge.shared.widgets import PathInput, ConsoleWidget
+from framekit.styles import COLORS, FONTS, RADIUS
+from framekit.icons import Icons
+from framekit.widgets import PathInput, ConsoleWidget
 from pyside_frameless import DropZoneWidget
-from ue_forge.shared.dialogs import MessageDialog
-from ue_forge.shared.types import LogLevel, LogMessage
-from ue_forge.shared.localization import tr
+from framekit.dialogs import MessageDialog
+from framekit.types import LogLevel, LogMessage, StatusKind
+from framekit.localization import tr
 from ue_forge.plugin_builder.builder import PluginBuilder
 from .core import (
     ChangeType,
@@ -574,7 +574,7 @@ class RenamerPage(QWidget):
     PAGE_ID = "renamer"
     PAGE_ICON = "TYPE"
 
-    status_changed = Signal(str, str)
+    status_changed = Signal(object, str)
 
     LEFT_PANEL_WIDTH = 440
 
@@ -902,7 +902,7 @@ class RenamerPage(QWidget):
         self._console.setVisible(True)
         self._console.clear()
         self._rename_btn.setEnabled(False)
-        self.status_changed.emit("running", tr("rename_in_progress"))
+        self.status_changed.emit(StatusKind.RUNNING, tr("rename_in_progress"))
 
         self._exec_thread = QThread()
         self._exec_worker = _ExecuteWorker(
@@ -921,11 +921,11 @@ class RenamerPage(QWidget):
     def _on_exec_done(self, result: RenameResult) -> None:
         self._rename_btn.setEnabled(True)
         if result.status == RenameStatus.SUCCESS and not result.errors:
-            self.status_changed.emit("success", tr("success"))
+            self.status_changed.emit(StatusKind.SUCCESS, tr("success"))
             MessageDialog.information(self, tr("rename_complete"),
                 tr("rename_successful", count=result.changes_applied, time=result.duration_seconds))
         else:
-            self.status_changed.emit("failed", tr("failed"))
+            self.status_changed.emit(StatusKind.FAILED, tr("failed"))
             summary = "\n".join(result.errors[:5]) if result.errors else result.message
             MessageDialog.error(self, tr("rename_failed"), tr("rename_failed_msg", error=summary))
 
@@ -937,7 +937,7 @@ class RenamerPage(QWidget):
 
     def show_settings(self) -> None:
         """Show settings dialog (called by host/standalone shell)."""
-        from ue_forge.shared.dialogs import SettingsDialog
+        from framekit.dialogs import SettingsDialog
         SettingsDialog(self, extra_tabs=self.get_settings_tabs()).exec()
 
     def can_close(self) -> bool:
